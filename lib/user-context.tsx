@@ -1,0 +1,72 @@
+"use client"
+
+import type React from "react"
+import { createContext, useContext, useState, useEffect } from "react"
+import { getProfile } from "./auth-api"
+import { apiClient } from "./api-client"
+
+export type UserRole = "healthcare_worker" | "woreda_officer" | "administrator" | "guardian" | "system_administrator"
+
+export interface User {
+  id?: string
+  email: string
+  name: string
+  role: UserRole
+  facility?: string
+}
+
+interface UserContextType {
+  user: User | null
+  setUser: (user: User | null) => void
+  logout: () => void
+  hasRole: (roles: UserRole | UserRole[]) => boolean
+  isLoading: boolean
+}
+
+const UserContext = createContext<UserContextType | undefined>(undefined)
+
+export function UserProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const verifyUser = async () => {
+      const token = typeof window !== "undefined" ? localStorage.getItem("authToken") : null
+      if (token) {
+        const { data, error } = await getProfile()
+        if (!error && data) {
+          setUser(data as User)
+        } else {
+          if (error?.status === 401 || error?.status === 403) {
+            apiClient.clearToken() // use apiClient.clearToken() to properly clear both localStorage and cookie
+            setUser(null)
+          }
+        }
+      }
+      setIsLoading(false)
+    }
+
+    verifyUser()
+  }, [])
+
+  const logout = () => {
+    setUser(null)
+    apiClient.clearToken() // call apiClient.clearToken() instead of manually clearing localStorage
+  }
+
+  const hasRole = (roles: UserRole | UserRole[]): boolean => {
+    if (!user) return false
+    const roleArray = Array.isArray(roles) ? roles : [roles]
+    return roleArray.includes(user.role)
+  }
+
+  return <UserContext.Provider value={{ user, setUser, logout, hasRole, isLoading }}>{children}</UserContext.Provider>
+}
+
+export function useUser() {
+  const context = useContext(UserContext)
+  if (!context) {
+    throw new Error("useUser must be used within UserProvider")
+  }
+  return context
+}
