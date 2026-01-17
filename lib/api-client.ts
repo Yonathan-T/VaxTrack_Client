@@ -1,5 +1,4 @@
-// This prevents "Failed to fetch" errors caused by hardcoded localhost URLs in a hosted environment
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://vaxtrackapi.onrender.com/api"
 
 export interface ApiResponse<T> {
   success: boolean
@@ -61,7 +60,7 @@ class ApiClient {
     try {
       console.log(`[v0] Requesting: ${endpoint}`)
       const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`
-      const url = this.baseUrl === "/api" ? `/api${cleanEndpoint}` : `${this.baseUrl}${cleanEndpoint}`
+      const url = `${this.baseUrl}${cleanEndpoint}`
 
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
