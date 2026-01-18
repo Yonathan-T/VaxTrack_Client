@@ -8,8 +8,8 @@ export function middleware(request: NextRequest) {
   // Define public paths
   const isPublicPath = pathname === "/login" || pathname === "/register" || pathname === "/"
 
-  // Redirect logic
-  if (isPublicPath && token) {
+  // Redirect logic: Only redirect from auth pages if logged in
+  if ((pathname === "/login" || pathname === "/register") && token) {
     return NextResponse.redirect(new URL("/dashboard", request.url))
   }
 

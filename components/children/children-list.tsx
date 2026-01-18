@@ -18,7 +18,7 @@ export function ChildrenList() {
   const [searchQuery, setSearchQuery] = useState("")
 
   const displayChildren =
-    user?.role === "guardian" ? childrenList.filter((child) => child.parentId === user.id) : childrenList
+    user?.role === "parent" ? childrenList.filter((child) => child.parentId === user.id) : childrenList
 
   const getVaccinationStatus = (dateOfBirth: string) => {
     const birthDate = new Date(dateOfBirth)

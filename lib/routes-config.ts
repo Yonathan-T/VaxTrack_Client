@@ -11,7 +11,7 @@ export const roleBasedRoutes: Record<string, string[]> = {
     "/dashboard/inventory",
   ],
   woreda_officer: ["/dashboard", "/dashboard/children", "/dashboard/vaccinations", "/dashboard/reports"],
-  administrator: [
+  admin: [
     "/dashboard",
     "/dashboard/children",
     "/dashboard/vaccinations",
@@ -20,7 +20,7 @@ export const roleBasedRoutes: Record<string, string[]> = {
     "/dashboard/inventory",
     "/dashboard/settings",
   ],
-  guardian: ["/dashboard", "/dashboard/children", "/dashboard/notifications"],
+  parent: ["/dashboard", "/dashboard/children", "/dashboard/notifications", "/dashboard/settings"],
   system_administrator: ["/dashboard", "/dashboard/settings"],
 }
 

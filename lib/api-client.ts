@@ -18,7 +18,7 @@ class ApiClient {
   private token: string | null = null
 
   constructor(baseUrl: string = API_BASE_URL) {
-    this.baseUrl = baseUrl
+    this.baseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl
     if (typeof window !== "undefined") {
       this.token = localStorage.getItem("authToken")
     }
@@ -45,6 +45,7 @@ class ApiClient {
   private getHeaders(): HeadersInit {
     const headers: HeadersInit = {
       "Content-Type": "application/json",
+      "Accept": "application/json",
     }
     if (this.token) {
       // VaxTrack requires "Bearer YOUR_TOKEN_HERE" format
@@ -58,9 +59,10 @@ class ApiClient {
     options: RequestInit = {},
   ): Promise<{ data?: T; error?: ApiError; status: number }> {
     try {
-      console.log(`[v0] Requesting: ${endpoint}`)
       const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`
       const url = `${this.baseUrl}${cleanEndpoint}`
+
+      console.log(`[API] ${options.method || "GET"} ${url}`)
 
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
@@ -72,8 +74,6 @@ class ApiClient {
           ...options.headers,
         },
         signal: controller.signal,
-        mode: "cors", // Explicitly request CORS
-        credentials: "omit", // Don't send cookies cross-origin
       })
 
       clearTimeout(timeoutId)

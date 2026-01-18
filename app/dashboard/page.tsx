@@ -18,16 +18,16 @@ export default function DashboardPage() {
   const { user } = useUser()
 
   const renderRoleDashboard = () => {
-    switch (user?.role) {
+    switch (user?.role as any) {
       case "healthcare_worker":
         return <HealthWorkerDashboard language={language} />
-      case "woreda_officer":
+      case "health_official":
         return <WoaredaDashboard language={language} />
-      case "administrator":
+      case "admin":
         return <AdminDashboard language={language} />
       case "system_administrator":
         return <SystemAdministratorDashboard language={language} />
-      case "guardian":
+      case "parent":
         return <ParentDashboard language={language} />
       default:
         return (

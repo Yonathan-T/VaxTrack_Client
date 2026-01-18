@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { LayoutDashboard, Users, Syringe, Calendar, BarChart3, Package, Settings, LogOut, Bell } from "lucide-react"
+import { LayoutDashboard, Users, Syringe, Calendar, BarChart3, Package, Settings, LogOut, Bell, User } from "lucide-react"
 import { useLanguage } from "@/lib/language-context"
 import { useUser } from "@/lib/user-context"
 import { t } from "@/lib/translations"
@@ -50,7 +50,7 @@ export function DashboardNav() {
         { title: t("dashboard.nav.vaccinations", language), href: "/dashboard/vaccinations", icon: Syringe },
         { title: t("dashboard.nav.reports", language), href: "/dashboard/reports", icon: BarChart3 },
       ],
-      administrator: [
+      admin: [
         { title: t("dashboard.nav.children", language), href: "/dashboard/children", icon: Users },
         { title: t("dashboard.nav.vaccinations", language), href: "/dashboard/vaccinations", icon: Syringe },
         { title: t("dashboard.nav.appointments", language), href: "/dashboard/appointments", icon: Calendar },
@@ -76,12 +76,8 @@ export function DashboardNav() {
         },
         { title: t("dashboard.nav.settings", language), href: "/dashboard/settings", icon: Settings },
       ],
-      guardian: [
-        {
-          title: t("dashboard.nav.notifications", language) || "Notifications",
-          href: "/dashboard/notifications",
-          icon: Bell,
-        },
+      parent: [
+        { title: t("dashboard.nav.settings", language), href: "/dashboard/settings", icon: Settings },
       ],
     }
 
@@ -118,10 +114,12 @@ export function DashboardNav() {
         isCollapsed ? "w-20 p-2" : "w-64 p-4",
       )}
     >
-      <div className="space-y-2 overflow-y-auto flex-1">
+      <div className="space-y-2 overflow-y-auto flex-1 mt-4">
         {navItems.map((item) => {
           const Icon = item.icon
-          const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
+          const isActive = item.href === "/dashboard"
+            ? pathname === item.href
+            : pathname === item.href || pathname.startsWith(item.href + "/")
 
           return (
             <Link
@@ -140,6 +138,7 @@ export function DashboardNav() {
             </Link>
           )
         })}
+
       </div>
 
       <div className={cn("pt-4 border-t border-border space-y-3", isCollapsed && "flex flex-col items-center")}>

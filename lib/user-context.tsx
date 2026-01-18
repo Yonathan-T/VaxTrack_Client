@@ -5,13 +5,14 @@ import { createContext, useContext, useState, useEffect } from "react"
 import { getProfile } from "./auth-api"
 import { apiClient } from "./api-client"
 
-export type UserRole = "healthcare_worker" | "woreda_officer" | "administrator" | "guardian" | "system_administrator"
+export type UserRole = "healthcare_worker" | "health_official" | "admin" | "parent" | "super_admin"
 
 export interface User {
   id?: string
   email: string
   name: string
   role: UserRole
+  phone?: string
   facility?: string
 }
 

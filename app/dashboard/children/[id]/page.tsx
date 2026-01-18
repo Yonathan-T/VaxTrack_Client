@@ -9,8 +9,10 @@ import Link from "next/link"
 import { useLanguage } from "@/lib/language-context"
 import { useUser } from "@/lib/user-context"
 import { t } from "@/lib/translations"
+import * as React from "react"
 
-export default function ChildDetailPage({ params }: { params: { id: string } }) {
+export default function ChildDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = React.use(paramsPromise)
   const { language } = useLanguage()
   const { user } = useUser()
 
@@ -18,12 +20,12 @@ export default function ChildDetailPage({ params }: { params: { id: string } }) 
     return null
   }
 
-  const isParent = user?.role === "guardian"
+  const isParent = user?.role === "parent"
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/dashboard/children">
+        <Link href={isParent ? "/dashboard" : "/dashboard/children"}>
           <Button variant="ghost" size="icon">
             <ArrowLeft className="h-5 w-5" />
           </Button>

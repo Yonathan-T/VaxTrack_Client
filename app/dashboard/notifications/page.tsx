@@ -11,7 +11,7 @@ import { Card } from "@/components/ui/card"
 export default function NotificationsPage() {
   const { user } = useUser()
   const { language } = useLanguage()
-  const isParent = user?.role === "guardian"
+  const isParent = user?.role === "parent"
 
   return (
     <div className="space-y-6">

@@ -3,96 +3,75 @@
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Bell, CheckCircle2, AlertCircle, Clock, Calendar } from "lucide-react"
+import { Bell, CheckCircle2, AlertCircle, Clock, Calendar, Syringe, AlertTriangle } from "lucide-react"
 import { useLanguage } from "@/lib/language-context"
-import { useChildren } from "@/lib/children-context"
-import { useUser } from "@/lib/user-context"
+import { useState, useEffect } from "react"
+import { getNotifications } from "@/lib/parent-api"
 
 export function ParentNotificationsList() {
   const { language } = useLanguage()
-  const { getChildrenByParent } = useChildren()
-  const { user } = useUser()
+  const [notifications, setNotifications] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  const parentId = user?.id || "parent_1"
-  const parentChildren = getChildrenByParent(parentId)
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const { data, error } = await getNotifications()
+        if (data && data.notifications) {
+          setNotifications(data.notifications)
+        }
+      } catch (err) {
+        console.error("Failed to fetch notifications:", err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
 
-  const notifications = [
-    {
-      id: 1,
-      type: "reminder",
-      child: parentChildren[0]?.firstName || "Child",
-      vaccine: "Penta 2",
-      message: `${parentChildren[0]?.firstName || "Your child"} has a Penta 2 vaccination appointment`,
-      status: "upcoming",
-      date: "2024-12-20",
-      time: "10:00 AM",
-    },
-    {
-      id: 2,
-      type: "alert",
-      child: parentChildren[0]?.firstName || "Child",
-      vaccine: "OPV 2",
-      message: `Vaccination due: ${parentChildren[0]?.firstName || "Your child"} needs OPV 2 vaccine`,
-      status: "due",
-      date: "2024-12-20",
-    },
-    {
-      id: 3,
-      type: "confirmation",
-      child: parentChildren[1]?.firstName || "Child",
-      vaccine: "Measles",
-      message: "Appointment confirmed for Measles vaccination",
-      status: "completed",
-      date: "2024-11-15",
-    },
-    {
-      id: 4,
-      type: "reminder",
-      child: parentChildren[0]?.firstName || "Child",
-      vaccine: "Pentavalent Booster",
-      message: `Upcoming: ${parentChildren[0]?.firstName || "Your child"} needs Pentavalent Booster`,
-      status: "upcoming",
-      date: "2024-12-25",
-    },
-  ].filter((notif) => parentChildren.some((child) => child.firstName === notif.child.split(" ")[0]))
+    fetchNotifications()
+  }, [])
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "completed":
+  const getStatusIcon = (type: string) => {
+    switch (type) {
+      case "inventory_alert":
+      case "alert":
+        return <AlertTriangle className="h-5 w-5 text-red-600" />
+      case "vaccination_reminder":
+      case "reminder":
+        return <Syringe className="h-5 w-5 text-orange-600" />
+      case "test_notification":
+      case "system":
+        return <Bell className="h-5 w-5 text-blue-600" />
+      case "info":
         return <CheckCircle2 className="h-5 w-5 text-green-600" />
-      case "due":
-        return <AlertCircle className="h-5 w-5 text-red-600" />
-      case "upcoming":
-        return <Calendar className="h-5 w-5 text-blue-600" />
       default:
-        return <Clock className="h-5 w-5 text-muted-foreground" />
+        return <Bell className="h-5 w-5 text-muted-foreground" />
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "bg-green-100 text-green-700 border-green-200"
-      case "due":
+  const getStatusColor = (type: string) => {
+    switch (type) {
+      case "inventory_alert":
+      case "alert":
         return "bg-red-100 text-red-700 border-red-200"
-      case "upcoming":
+      case "vaccination_reminder":
+      case "reminder":
+        return "bg-orange-100 text-orange-700 border-orange-200"
+      case "test_notification":
+      case "system":
         return "bg-blue-100 text-blue-700 border-blue-200"
+      case "info":
+        return "bg-green-100 text-green-700 border-green-200"
       default:
         return "bg-gray-100 text-gray-700 border-gray-200"
     }
   }
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case "completed":
-        return language === "am" ? "ተጠናቋል" : "Completed"
-      case "due":
-        return language === "am" ? "ሚገባ" : "Due"
-      case "upcoming":
-        return language === "am" ? "ወደ ፊት" : "Upcoming"
-      default:
-        return language === "am" ? "ጣ待ち" : "Pending"
-    }
+  if (isLoading) {
+    return (
+      <Card className="p-6 flex justify-center items-center min-h-[200px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </Card>
+    )
   }
 
   return (
@@ -118,28 +97,21 @@ export function ParentNotificationsList() {
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  {getStatusIcon(notification.status)}
+                  {getStatusIcon(notification.type)}
                   <div>
-                    <p className="font-medium text-foreground">{notification.vaccine}</p>
-                    <p className="text-sm text-muted-foreground">{notification.child}</p>
+                    <p className="font-medium text-foreground">{notification.data?.title || "Notification"}</p>
+                    <p className="text-sm text-muted-foreground">{new Date(notification.created_at || notification.createdAt).toLocaleDateString()}</p>
                   </div>
                 </div>
-                <Badge className={getStatusColor(notification.status)}>{getStatusLabel(notification.status)}</Badge>
+                <Badge className={getStatusColor(notification.type || "info")}>
+                  {notification.type === "inventory_alert" || notification.type === "alert" ? (language === "am" ? "ማስጠንቀቂያ" : "Alert") :
+                    notification.type === "vaccination_reminder" || notification.type === "reminder" ? (language === "am" ? "ማስታወሻ" : "Vaccine") :
+                      notification.type === "test_notification" || notification.type === "system" ? (language === "am" ? "ሲስተም" : "System") :
+                        (language === "am" ? "መረጃ" : "Info")}
+                </Badge>
               </div>
 
-              <p className="text-sm text-foreground mb-2">{notification.message}</p>
-
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>
-                  {language === "am" ? "ቀን:" : "Date:"} {notification.date}
-                  {notification.time && ` · ${notification.time}`}
-                </span>
-                {notification.status === "due" && (
-                  <Button size="sm" className="ml-2">
-                    {language === "am" ? "አስቀድም" : "Schedule"}
-                  </Button>
-                )}
-              </div>
+              <p className="text-sm text-foreground mb-2">{notification.data?.message || notification.message}</p>
             </div>
           ))}
         </div>

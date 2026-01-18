@@ -24,7 +24,7 @@ export default function ReportsPage() {
   const [activeFilters, setActiveFilters] = useState<FilterOptions | null>(null)
   const { vaccinations } = useVaccinations()
   const { children } = useChildren()
-  const [reportData, setReportData] = useState(null)
+  const [reportData, setReportData] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -114,7 +114,7 @@ export default function ReportsPage() {
   }
 
   return (
-    <RoleProtected allowedRoles={["woreda_officer", "administrator"]}>
+    <RoleProtected allowedRoles={["woreda_officer", "admin"]}>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>

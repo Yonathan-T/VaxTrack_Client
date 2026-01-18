@@ -18,8 +18,10 @@ export interface LoginResponse {
 export interface RegisterRequest {
   email: string
   password: string
-  fullName: string
-  role: string
+  password_confirmation: string
+  name: string
+  phone: string
+  //role: string
   facility?: string
 }
 

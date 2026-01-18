@@ -2,12 +2,34 @@ import { apiClient } from "./api-client"
 
 export interface Child {
   id: string
-  name: string
-  dateOfBirth: string
-  gender: string
-  parentId: string
-  facility?: string
-  createdAt: string
+  first_name: string
+  last_name: string
+  name?: string
+  date_of_birth: string
+  sex: string
+  national_id?: string
+  address?: string
+  user_id?: number
+  registered_by?: number
+  facility_id?: number
+  created_at?: string
+  updated_at?: string
+  vaccination_records?: {
+    id: number
+    scheduled_date: string
+    date_administered: string | null
+    status: string
+    vaccine: {
+      name: string
+      description: string
+    }
+  }[]
+  appointments?: {
+    id: number
+    appointment_date: string
+    status: string
+    notes: string | null
+  }[]
 }
 
 export interface VaccinationRecord {
@@ -41,7 +63,7 @@ export async function getParentDashboard() {
 }
 
 export async function getChildren() {
-  return apiClient.get<{ children: Child[] }>("/v1/children")
+  return apiClient.get<Child[]>("/v1/children")
 }
 
 export async function getChildDetails(childId: string) {
@@ -62,6 +84,14 @@ export async function getNotifications() {
 
 export async function markNotificationsAsRead() {
   return apiClient.post("/v1/notifications/mark-all-as-read", {})
+}
+
+export async function updateProfile(profileData: {
+  name?: string
+  email?: string
+  phone?: string
+}) {
+  return apiClient.put("/v1/user/profile", profileData)
 }
 
 export async function logoutParent() {

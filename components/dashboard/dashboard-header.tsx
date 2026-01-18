@@ -1,6 +1,6 @@
 "use client"
 
-import { Shield, Bell, User, LogOut, Menu } from "lucide-react"
+import { Shield, Bell, User, LogOut, Menu, Syringe, AlertTriangle, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -18,9 +18,10 @@ import { LanguageSwitcher } from "@/components/language-switcher"
 import { ThemeSwitcher } from "@/components/theme-switcher"
 import { Badge } from "@/components/ui/badge"
 import { logoutUser } from "@/lib/auth-api"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { useSidebar } from "@/lib/sidebar-context"
+import { getNotifications } from "@/lib/parent-api"
 
 export function DashboardHeader() {
   const router = useRouter()
@@ -30,26 +31,24 @@ export function DashboardHeader() {
   const { toast } = useToast()
   const { toggleSidebar } = useSidebar() // Get sidebar toggle function
 
-  const notifications = [
-    {
-      id: 1,
-      message: "Reminder: Penta 2 vaccination appointment tomorrow",
-      type: "appointment",
-      read: false,
-    },
-    {
-      id: 2,
-      message: "New child registered: Abebe Kebede",
-      type: "registration",
-      read: false,
-    },
-    {
-      id: 3,
-      message: "Vaccination record updated for Yonas Bekele",
-      type: "vaccination",
-      read: true,
-    },
-  ]
+  const [notifications, setNotifications] = useState<any[]>([])
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const { data } = await getNotifications()
+        if (data && data.notifications) {
+          setNotifications(data.notifications)
+        }
+      } catch (err) {
+        console.error("Failed to fetch header notifications:", err)
+      }
+    }
+    // Only fetch if user is logged in
+    if (user) {
+      fetchNotifications()
+    }
+  }, [user])
 
   const unreadCount = notifications.filter((n) => !n.read).length
 
@@ -114,30 +113,57 @@ export function DashboardHeader() {
                     <DropdownMenuItem
                       key={notification.id}
                       className="flex flex-col items-start py-3 px-3 cursor-pointer hover:bg-muted"
+                      onClick={() => {
+                        if (user?.role === 'parent') {
+                          router.push("/dashboard/settings")
+                        } else {
+                          router.push("/dashboard/notifications")
+                        }
+                      }}
                     >
-                      <div className="flex items-start gap-2 w-full">
-                        {!notification.read && <div className="h-2 w-2 rounded-full bg-primary mt-1.5 flex-shrink-0" />}
-                        <div className="flex-1">
-                          <p className={`text-sm ${!notification.read ? "font-semibold" : ""}`}>
-                            {notification.message}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1 capitalize">{notification.type}</p>
+                      <div className="flex items-start gap-3 w-full">
+                        <div className="mt-1">
+                          {notification.type === "vaccination_reminder" || notification.type === "reminder" ? (
+                            <Syringe className="h-4 w-4 text-orange-600" />
+                          ) : notification.type === "inventory_alert" || notification.type === "alert" ? (
+                            <AlertTriangle className="h-4 w-4 text-red-600" />
+                          ) : (
+                            <Bell className="h-4 w-4 text-blue-600" />
+                          )}
                         </div>
+                        <div className="flex-1 overflow-hidden">
+                          <p className={`text-sm truncate ${!notification.read ? "font-semibold" : ""}`}>
+                            {notification.data?.title || "Notification"}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                            {notification.data?.message || notification.message}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground mt-1 text-right">
+                            {new Date(notification.created_at || notification.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        {!notification.read && <div className="h-2 w-2 rounded-full bg-primary mt-1.5 flex-shrink-0" />}
                       </div>
                     </DropdownMenuItem>
                   ))}
                 </div>
               ) : (
                 <div className="p-4 text-center text-sm text-muted-foreground">
-                  {t("dashboard.header.noNotifications", language) || "No notifications"}
+                  {language === "am" ? "ምንም አዲስ ማስታወቂያ የለም" : "No new notifications"}
                 </div>
               )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={() => router.push("/dashboard/notifications")}
+                onClick={() => {
+                  if (user?.role === 'parent') {
+                    router.push("/dashboard/settings")
+                  } else {
+                    router.push("/dashboard/notifications")
+                  }
+                }}
                 className="text-primary font-medium cursor-pointer"
               >
-                {t("dashboard.header.viewAll", language) || "View All Notifications"}
+                {language === "am" ? "ሁሉንም ማስታወቂያዎች ይመልከቱ" : "View All Notifications"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

@@ -1,15 +1,18 @@
 "use client"
 import { useMemo } from "react"
 import Image from "next/image"
+import Link from "next/link"
 import { Card } from "@/components/ui/card"
 import { Shield, Users, Calendar, BarChart3, Bell, Database } from "lucide-react"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { ThemeSwitcher } from "@/components/theme-switcher"
 import { useLanguage } from "@/lib/language-context"
+import { useUser } from "@/lib/user-context"
 import { t } from "@/lib/translations"
 
 export default function HomePage() {
   const { language } = useLanguage()
+  const { user } = useUser()
 
   const features = useMemo(
     () => [
@@ -66,12 +69,21 @@ export default function HomePage() {
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-            <a
-              href="/login"
-              className="px-3 sm:px-4 py-2 text-sm sm:text-base rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              Login
-            </a>
+            {user ? (
+              <Link
+                href="/dashboard"
+                className="px-3 sm:px-4 py-2 text-sm sm:text-base rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                Dashboard
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                className="px-3 sm:px-4 py-2 text-sm sm:text-base rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                Login
+              </Link>
+            )}
             <LanguageSwitcher />
             <ThemeSwitcher />
           </div>
