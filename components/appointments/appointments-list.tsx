@@ -1,14 +1,20 @@
 "use client"
 import { useState, useEffect } from "react"
-import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Search, Phone, CheckCircle, RefreshCw } from "lucide-react"
+import { Search, Phone, CheckCircle, RefreshCw, Loader2, Eye, Calendar, X } from "lucide-react"
 import { useLanguage } from "@/lib/language-context"
 import { t } from "@/lib/translations"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
-import { getAppointmentsList, getChildProfile } from "@/lib/healthcare-worker-api"
+import { 
+  getAppointmentsList, 
+  getChildProfile, 
+  getAppointmentDetails,
+  updateAppointment,
+  cancelAppointment,
+  Appointment as ApiAppointment
+} from "@/lib/healthcare-worker-api"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,6 +24,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 interface Appointment {
   id: string
@@ -36,7 +51,7 @@ interface Appointment {
 }
 
 interface AppointmentsListProps {
-  selectedDate?: number
+  selectedDate?: Date
 }
 
 export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
@@ -48,8 +63,15 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [callDialogOpen, setCallDialogOpen] = useState(false)
   const [checkinDialogOpen, setCheckinDialogOpen] = useState(false)
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false)
+  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false)
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
+  const [appointmentDetails, setAppointmentDetails] = useState<ApiAppointment | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false)
+  const [newDate, setNewDate] = useState("")
+  const [newTime, setNewTime] = useState("")
 
   const fetchAppointments = async (showRefreshIndicator = false) => {
     try {
@@ -68,68 +90,89 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
       }
 
       if (response.data) {
-        // Handle both { appointments: [] } and raw array responses
-        const appointmentsData = (response.data as any).appointments || response.data || []
-        const appointmentsArray = Array.isArray(appointmentsData) ? appointmentsData : []
+        // Handle API response structure
+        const appointmentsData = response.data as any
+        const appointmentsArray = Array.isArray(appointmentsData?.data) 
+          ? appointmentsData.data 
+          : Array.isArray(appointmentsData?.appointments)
+          ? appointmentsData.appointments
+          : Array.isArray(appointmentsData)
+          ? appointmentsData
+          : []
 
-        console.log("[v0] Fetched appointments:", appointmentsArray.length)
+        console.log("[AppointmentsList] Fetched appointments:", appointmentsArray.length)
 
-        // Fetch child details for each appointment to get guardian and phone info
+        // Transform API appointments to match our interface
         const enrichedAppointments = await Promise.all(
           appointmentsArray.map(async (apt: any) => {
             try {
-              if (!apt.childId) {
-                return {
-                  ...apt,
-                  childName: apt.childName || "-",
-                  guardianName: "-",
-                  phone: "-",
-                  vaccine: apt.appointmentType || "-",
-                  time: apt.dateTime
-                    ? new Date(apt.dateTime).toLocaleTimeString("en-US", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: true,
-                      })
-                    : "-",
-                  status: apt.status === "scheduled" ? "pending" : apt.status,
+              const childId = apt.child_id || apt.childId || apt.child?.id
+              const scheduledDate = apt.scheduled_date || apt.appointment_date || apt.dateTime
+              
+              let childName = apt.child?.first_name && apt.child?.last_name
+                ? `${apt.child.first_name} ${apt.child.last_name}`
+                : apt.childName || "-"
+              
+              let guardianName = apt.child?.parent?.name || "-"
+              let phone = apt.child?.parent?.phone || "-"
+
+              // Fetch child details if we have childId but no child data
+              if (childId && !apt.child) {
+                try {
+                  const childProfile = await getChildProfile(childId.toString())
+                  const childData = childProfile.data as any
+                  if (childData) {
+                    childName = childData.first_name && childData.last_name
+                      ? `${childData.first_name} ${childData.last_name}`
+                      : childData.name || childName
+                    guardianName = childData.parent?.name || childData.contact?.guardianName || guardianName
+                    phone = childData.parent?.phone || childData.contact?.guardianPhone || phone
+                  }
+                } catch (err) {
+                  console.log("[AppointmentsList] Error fetching child:", err)
                 }
               }
 
-              const childProfile = await getChildProfile(apt.childId)
-              const childData = childProfile.data as any
+              const vaccineName = apt.vaccine?.name || apt.appointmentType || "-"
+              const appointmentDate = scheduledDate ? new Date(scheduledDate) : null
 
               return {
                 ...apt,
-                childName: apt.childName || childData?.name || "-",
-                guardianName: childData?.contact?.guardianName || "-",
-                phone: childData?.contact?.guardianPhone || "-",
-                vaccine: apt.appointmentType || "-",
-                time: apt.dateTime
-                  ? new Date(apt.dateTime).toLocaleTimeString("en-US", {
+                id: apt.id?.toString() || Date.now().toString(),
+                childId: childId?.toString(),
+                childName,
+                guardianName,
+                phone,
+                vaccine: vaccineName,
+                appointmentType: vaccineName,
+                dateTime: scheduledDate,
+                time: appointmentDate
+                  ? appointmentDate.toLocaleTimeString("en-US", {
                       hour: "2-digit",
                       minute: "2-digit",
                       hour12: true,
                     })
                   : "-",
-                status: apt.status === "scheduled" ? "pending" : apt.status,
+                status: apt.status || "scheduled",
               }
             } catch (err) {
-              console.log("[v0] Error enriching appointment:", err)
+              console.log("[AppointmentsList] Error enriching appointment:", err)
               return {
                 ...apt,
+                id: apt.id?.toString() || Date.now().toString(),
                 childName: apt.childName || "-",
                 guardianName: "-",
                 phone: "-",
-                vaccine: apt.appointmentType || "-",
-                time: apt.dateTime
-                  ? new Date(apt.dateTime).toLocaleTimeString("en-US", {
+                vaccine: apt.vaccine?.name || apt.appointmentType || "-",
+                appointmentType: apt.vaccine?.name || apt.appointmentType || "-",
+                time: apt.scheduled_date || apt.appointment_date || apt.dateTime
+                  ? new Date(apt.scheduled_date || apt.appointment_date || apt.dateTime).toLocaleTimeString("en-US", {
                       hour: "2-digit",
                       minute: "2-digit",
                       hour12: true,
                     })
                   : "-",
-                status: apt.status === "scheduled" ? "pending" : apt.status,
+                status: apt.status || "scheduled",
               }
             }
           }),
@@ -181,8 +224,8 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
       console.log("[v0] Calling appointment:", selectedAppointment.id)
 
       toast({
-        title: t("appointments.call", language),
-        description: `${t("appointments.calling", language)} ${guardianName} at ${guardianPhone}`,
+        title: t("appointments.call", language) || "Call",
+        description: `${t("appointments.calling", language) || "Calling"} ${guardianName} at ${guardianPhone}`,
         variant: "default",
       })
     } finally {
@@ -209,10 +252,10 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
         prev.map((apt) => (apt.id === selectedAppointment.id ? { ...apt, status: "checked-in" } : apt)),
       )
 
-      console.log("[v0] Appointment checked in:", selectedAppointment.id)
+      console.log("[AppointmentsList] Appointment checked in:", selectedAppointment.id)
 
       toast({
-        title: t("appointments.checkIn", language),
+        title: t("appointments.checkIn", language) || "Check In",
         description: `${childName} has been checked in for ${vaccine}`,
         variant: "default",
       })
@@ -222,27 +265,187 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
     }
   }
 
+  const handleViewDetails = async (appointment: Appointment) => {
+    setSelectedAppointment(appointment)
+    setIsLoadingDetails(true)
+    setDetailDialogOpen(true)
+
+    try {
+      const response = await getAppointmentDetails(appointment.id)
+      if (response.error) {
+        console.error("[AppointmentsList] Error fetching appointment details:", response.error)
+        toast({
+          title: t("common.error", language) || "Error",
+          description: response.error.message || "Failed to load appointment details",
+          variant: "destructive",
+        })
+      } else {
+        const details = (response.data as any)?.data || response.data
+        setAppointmentDetails(details)
+      }
+    } catch (error) {
+      console.error("[AppointmentsList] Error:", error)
+      toast({
+        title: t("common.error", language) || "Error",
+        description: "Failed to load appointment details",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoadingDetails(false)
+    }
+  }
+
+  const handleReschedule = (appointment: Appointment) => {
+    setSelectedAppointment(appointment)
+    const aptDate = appointment.dateTime || appointment.scheduled_date || appointment.appointment_date
+    if (aptDate) {
+      const date = new Date(aptDate)
+      setNewDate(date.toISOString().split('T')[0])
+      setNewTime(date.toTimeString().slice(0, 5))
+    }
+    setRescheduleDialogOpen(true)
+  }
+
+  const confirmReschedule = async () => {
+    if (!selectedAppointment || !newDate) return
+
+    try {
+      setIsProcessing(true)
+      const response = await updateAppointment(selectedAppointment.id, {
+        scheduled_date: newTime ? `${newDate} ${newTime}` : newDate,
+        status: "rescheduled",
+      })
+
+      if (response.error) {
+        toast({
+          title: t("common.error", language) || "Error",
+          description: response.error.message || "Failed to reschedule appointment",
+          variant: "destructive",
+        })
+        return
+      }
+
+      toast({
+        title: t("appointments.rescheduled", language) || "Appointment Rescheduled",
+        description: "Appointment has been rescheduled successfully",
+        variant: "default",
+      })
+
+      // Refresh appointments
+      await fetchAppointments(true)
+      setRescheduleDialogOpen(false)
+    } catch (error) {
+      console.error("[AppointmentsList] Error rescheduling:", error)
+      toast({
+        title: t("common.error", language) || "Error",
+        description: "Failed to reschedule appointment",
+        variant: "destructive",
+      })
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleCancel = (appointment: Appointment) => {
+    setSelectedAppointment(appointment)
+    setCancelDialogOpen(true)
+  }
+
+  const confirmCancel = async () => {
+    if (!selectedAppointment) return
+
+    try {
+      setIsProcessing(true)
+      const response = await cancelAppointment(selectedAppointment.id)
+
+      if (response.error) {
+        toast({
+          title: t("common.error", language) || "Error",
+          description: response.error.message || "Failed to cancel appointment",
+          variant: "destructive",
+        })
+        return
+      }
+
+      toast({
+        title: t("appointments.cancelled", language) || "Appointment Cancelled",
+        description: "Appointment has been cancelled successfully",
+        variant: "default",
+      })
+
+      // Refresh appointments
+      await fetchAppointments(true)
+      setCancelDialogOpen(false)
+    } catch (error) {
+      console.error("[AppointmentsList] Error cancelling:", error)
+      toast({
+        title: t("common.error", language) || "Error",
+        description: "Failed to cancel appointment",
+        variant: "destructive",
+      })
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
   const isCheckedIn = (appointmentId: string) => {
     return appointments.find((apt) => apt.id === appointmentId)?.status === "checked-in"
   }
 
   const filteredAppointments = appointments.filter((appointment) => {
-    const searchLower = searchQuery.toLowerCase()
-    const childName = (appointment.child || appointment.childName || "").toLowerCase()
-    const guardianName = (appointment.guardian || appointment.guardianName || "").toLowerCase()
-    const vaccine = (appointment.vaccine || appointment.appointmentType || "").toLowerCase()
-    const phone = appointment.phone || appointment.guardianPhone || ""
+    // Filter by selected date if provided
+    if (selectedDate) {
+      const aptDate = appointment.dateTime || appointment.scheduled_date || appointment.appointment_date
+      if (aptDate) {
+        const appointmentDate = new Date(aptDate)
+        const isSameDate = 
+          appointmentDate.getDate() === selectedDate.getDate() &&
+          appointmentDate.getMonth() === selectedDate.getMonth() &&
+          appointmentDate.getFullYear() === selectedDate.getFullYear()
+        
+        if (!isSameDate) return false
+      } else {
+        return false // No date on appointment, exclude if filtering by date
+      }
+    }
 
-    return (
-      childName.includes(searchLower) ||
-      guardianName.includes(searchLower) ||
-      vaccine.includes(searchLower) ||
-      phone.includes(searchLower)
-    )
+    // Filter by search query
+    if (searchQuery) {
+      const searchLower = searchQuery.toLowerCase()
+      const childName = (appointment.child || appointment.childName || "").toLowerCase()
+      const guardianName = (appointment.guardian || appointment.guardianName || "").toLowerCase()
+      const vaccine = (appointment.vaccine || appointment.appointmentType || "").toLowerCase()
+      const phone = appointment.phone || appointment.guardianPhone || ""
+
+      return (
+        childName.includes(searchLower) ||
+        guardianName.includes(searchLower) ||
+        vaccine.includes(searchLower) ||
+        phone.includes(searchLower)
+      )
+    }
+
+    return true
   })
 
   if (isLoading) {
-    return <div className="text-center py-8 text-muted-foreground">{t("dashboard.loading", language)}</div>
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <div className="h-10 bg-muted animate-pulse rounded-md" />
+          </div>
+          <div className="h-10 w-24 bg-muted animate-pulse rounded-md" />
+        </div>
+        <div className="border rounded-lg overflow-hidden">
+          <div className="space-y-3 p-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="h-16 bg-muted animate-pulse rounded-lg" />
+            ))}
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -292,8 +495,8 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
                 <th className="px-3 py-2 text-left font-semibold text-foreground whitespace-nowrap min-w-[100px]">
                   {t("appointments.status", language) || "Status"}
                 </th>
-                <th className="px-3 py-2 text-left font-semibold text-foreground whitespace-nowrap min-w-[220px]">
-                  {t("dashboard.actions.actions", language) || "Actions"}
+                <th className="px-3 py-2 text-left font-semibold text-foreground whitespace-nowrap min-w-[280px]">
+                  {t("dashboard.actions.view", language) || "Actions"}
                 </th>
               </tr>
             </thead>
@@ -335,12 +538,21 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
                           {checkedIn
                             ? t("appointments.checkedIn", language) || "Checked In"
                             : appointment.status === "confirmed"
-                              ? t("appointments.confirmed", language)
-                              : t("appointments.pending", language)}
+                              ? t("appointments.confirmed", language) || "Confirmed"
+                              : t("appointments.pending", language) || "Pending"}
                         </Badge>
                       </td>
                       <td className="px-3 py-2">
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1 bg-transparent"
+                            onClick={() => handleViewDetails(appointment)}
+                          >
+                            <Eye className="h-3 w-3" />
+                            {t("common.view", language) || "View"}
+                          </Button>
                           <Button
                             size="sm"
                             variant="outline"
@@ -350,6 +562,26 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
                           >
                             <Phone className="h-3 w-3" />
                             {t("appointments.call", language) || "Call"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1 bg-transparent"
+                            onClick={() => handleReschedule(appointment)}
+                            disabled={checkedIn || appointment.status === "cancelled" || appointment.status === "completed"}
+                          >
+                            <Calendar className="h-3 w-3" />
+                            {t("appointments.reschedule", language) || "Reschedule"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1 bg-transparent text-destructive hover:text-destructive"
+                            onClick={() => handleCancel(appointment)}
+                            disabled={checkedIn || appointment.status === "cancelled" || appointment.status === "completed"}
+                          >
+                            <X className="h-3 w-3" />
+                            {t("appointments.cancel", language) || "Cancel"}
                           </Button>
                           <Button
                             size="sm"
@@ -411,6 +643,169 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
             <AlertDialogCancel>{t("common.cancel", language) || "Cancel"}</AlertDialogCancel>
             <AlertDialogAction onClick={confirmCheckin} disabled={isProcessing}>
               {isProcessing ? "Processing..." : t("appointments.checkIn", language) || "Check In"}
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Appointment Detail Dialog */}
+      <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t("appointments.details", language) || "Appointment Details"}</DialogTitle>
+            <DialogDescription>
+              {t("appointments.viewDetails", language) || "View full appointment information"}
+            </DialogDescription>
+          </DialogHeader>
+          {isLoadingDetails ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : appointmentDetails ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">{t("appointments.child", language) || "Child"}</Label>
+                  <p className="font-medium">
+                    {appointmentDetails.child?.first_name && appointmentDetails.child?.last_name
+                      ? `${appointmentDetails.child.first_name} ${appointmentDetails.child.last_name}`
+                      : selectedAppointment?.childName || "-"}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">{t("appointments.vaccine", language) || "Vaccine"}</Label>
+                  <p className="font-medium">{appointmentDetails.vaccine?.name || selectedAppointment?.vaccine || "-"}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">{t("appointments.date", language) || "Date"}</Label>
+                  <p className="font-medium">
+                    {appointmentDetails.scheduled_date || appointmentDetails.appointment_date
+                      ? new Date(appointmentDetails.scheduled_date || appointmentDetails.appointment_date).toLocaleDateString()
+                      : "-"}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">{t("appointments.time", language) || "Time"}</Label>
+                  <p className="font-medium">
+                    {appointmentDetails.scheduled_date || appointmentDetails.appointment_date
+                      ? new Date(appointmentDetails.scheduled_date || appointmentDetails.appointment_date).toLocaleTimeString()
+                      : "-"}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">{t("appointments.status", language) || "Status"}</Label>
+                  <Badge variant="secondary" className="mt-1">
+                    {appointmentDetails.status || "-"}
+                  </Badge>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">{t("appointments.guardian", language) || "Guardian"}</Label>
+                  <p className="font-medium">
+                    {appointmentDetails.child?.parent?.name || selectedAppointment?.guardianName || "-"}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">{t("appointments.phone", language) || "Phone"}</Label>
+                  <p className="font-medium font-mono">
+                    {appointmentDetails.child?.parent?.phone || selectedAppointment?.phone || "-"}
+                  </p>
+                </div>
+                {appointmentDetails.facility && (
+                  <div>
+                    <Label className="text-muted-foreground">{t("appointments.facility", language) || "Facility"}</Label>
+                    <p className="font-medium">{appointmentDetails.facility.name || "-"}</p>
+                  </div>
+                )}
+              </div>
+              {appointmentDetails.notes && (
+                <div>
+                  <Label className="text-muted-foreground">{t("appointments.notes", language) || "Notes"}</Label>
+                  <p className="mt-1 text-sm">{appointmentDetails.notes}</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-center py-4">
+              {t("common.noData", language) || "No details available"}
+            </p>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Reschedule Dialog */}
+      <Dialog open={rescheduleDialogOpen} onOpenChange={setRescheduleDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("appointments.reschedule", language) || "Reschedule Appointment"}</DialogTitle>
+            <DialogDescription>
+              {selectedAppointment
+                ? `${t("appointments.rescheduleFor", language) || "Reschedule appointment for"} ${selectedAppointment.childName || "-"}`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="newDate">{t("appointments.newDate", language) || "New Date"}</Label>
+              <Input
+                id="newDate"
+                type="date"
+                value={newDate}
+                onChange={(e) => setNewDate(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="newTime">{t("appointments.newTime", language) || "New Time"}</Label>
+              <Input
+                id="newTime"
+                type="time"
+                value={newTime}
+                onChange={(e) => setNewTime(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setRescheduleDialogOpen(false)}>
+                {t("common.cancel", language) || "Cancel"}
+              </Button>
+              <Button onClick={confirmReschedule} disabled={isProcessing || !newDate}>
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    {t("common.processing", language) || "Processing..."}
+                  </>
+                ) : (
+                  t("appointments.reschedule", language) || "Reschedule"
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Dialog */}
+      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("appointments.cancel", language) || "Cancel Appointment"}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedAppointment
+                ? `${t("appointments.cancelConfirm", language) || "Are you sure you want to cancel the appointment for"} ${selectedAppointment.childName || "-"}? This action cannot be undone.`
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex gap-2">
+            <AlertDialogCancel>{t("common.cancel", language) || "Cancel"}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmCancel} disabled={isProcessing} className="bg-destructive hover:bg-destructive/90">
+              {isProcessing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  {t("common.processing", language) || "Processing..."}
+                </>
+              ) : (
+                t("appointments.cancel", language) || "Cancel Appointment"
+              )}
             </AlertDialogAction>
           </div>
         </AlertDialogContent>

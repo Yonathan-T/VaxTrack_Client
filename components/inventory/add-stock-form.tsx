@@ -10,28 +10,69 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle } from "lucide-react"
+import { AlertCircle, Loader2 } from "lucide-react"
 import { useLanguage } from "@/lib/language-context"
 import { t } from "@/lib/translations"
+import { addStock as addStockAPI } from "@/lib/healthcare-worker-api"
 import { useInventory } from "@/lib/inventory-context"
+import { useToast } from "@/hooks/use-toast"
+import { useUser } from "@/lib/user-context"
+import { apiClient } from "@/lib/api-client"
 
 export function AddStockForm() {
   const router = useRouter()
   const { language } = useLanguage()
-  const { addStock } = useInventory()
+  const { refreshStock } = useInventory()
+  const { toast } = useToast()
+  const { user } = useUser()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [availableVaccines, setAvailableVaccines] = useState<Array<{ id: number; name: string; code: string }>>([])
+  const [isLoadingVaccines, setIsLoadingVaccines] = useState(false)
+
+  // Fetch available vaccines on mount
+  useEffect(() => {
+    const fetchVaccines = async () => {
+      try {
+        setIsLoadingVaccines(true)
+        // Try to get vaccines from /v1/vaccines endpoint
+        const response = await apiClient.get("/v1/vaccines")
+        if (response.data && !response.error) {
+          const vaccinesData = (response.data as any).data || response.data
+          const vaccinesArray = Array.isArray(vaccinesData) ? vaccinesData : []
+          setAvailableVaccines(
+            vaccinesArray.map((v: any) => ({
+              id: v.id,
+              name: v.name || v.code,
+              code: v.code || "",
+            })),
+          )
+        }
+      } catch (err) {
+        console.error("[AddStockForm] Error fetching vaccines:", err)
+        // Fallback to hardcoded list if API fails
+        setAvailableVaccines([
+          { id: 1, name: "BCG", code: "BCG" },
+          { id: 2, name: "OPV", code: "OPV" },
+          { id: 3, name: "Penta", code: "PENTA" },
+          { id: 4, name: "PCV", code: "PCV" },
+          { id: 5, name: "Rotavirus", code: "ROTA" },
+          { id: 6, name: "Measles-Rubella", code: "MEASLES" },
+          { id: 7, name: "IPV", code: "IPV" },
+        ])
+      } finally {
+        setIsLoadingVaccines(false)
+      }
+    }
+    fetchVaccines()
+  }, [])
 
   const [formData, setFormData] = useState({
-    vaccine: "",
+    vaccine_id: "",
     batchNumber: "",
     quantity: "",
-    manufacturer: "",
-    receivedDate: "",
     expiryDate: "",
     supplier: "",
-    storageLocation: "",
-    temperature: "",
     notes: "",
   })
 
@@ -39,34 +80,43 @@ export function AddStockForm() {
     e.preventDefault()
     setError("")
 
-    if (!formData.vaccine || !formData.batchNumber || !formData.quantity || !formData.manufacturer) {
-      setError("Please fill in all required fields")
+    if (!formData.vaccine_id || !formData.batchNumber || !formData.quantity || !formData.expiryDate) {
+      setError("Please fill in all required fields (Vaccine, Batch Number, Quantity, and Expiry Date)")
       return
     }
 
     setLoading(true)
 
     try {
-      addStock({
-        name: formData.vaccine,
-        batchNumber: formData.batchNumber,
+      // API expects: vaccine_id, batch_number, quantity, expiry_date, supplier (optional), notes (optional)
+      // facility_id is automatically taken from the logged-in user's facility
+      const response = await addStockAPI({
+        vaccine_id: Number.parseInt(formData.vaccine_id),
+        batch_number: formData.batchNumber,
         quantity: Number.parseInt(formData.quantity),
-        manufacturer: formData.manufacturer,
-        minStock: 200, // Default minimum stock
-        expiryDate: formData.expiryDate,
-        supplier: formData.supplier,
-        storageLocation: formData.storageLocation,
-        temperature: formData.temperature,
-        notes: formData.notes,
-        receivedDate: formData.receivedDate,
-        consumption: 0,
+        expiry_date: formData.expiryDate,
+        supplier: formData.supplier || undefined,
+        notes: formData.notes || undefined,
       })
 
-      setTimeout(() => {
-        router.push("/dashboard/inventory")
-      }, 500)
+      if (response.error) {
+        setError(response.error.message || "Failed to add stock. Please try again.")
+        setLoading(false)
+        return
+      }
+
+      toast({
+        title: t("form.success", language) || "Success",
+        description: t("inventory.stockAddedSuccessfully", language) || "Stock added successfully",
+      })
+
+      // Refresh the inventory
+      await refreshStock()
+
+      router.push("/dashboard/inventory")
     } catch (err) {
       setError("Failed to add stock. Please try again.")
+      console.error("[AddStockForm] Error:", err)
       setLoading(false)
     }
   }
@@ -86,21 +136,30 @@ export function AddStockForm() {
         <div className="grid md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="vaccine">Vaccine Type *</Label>
-            <Select value={formData.vaccine} onValueChange={(value) => setFormData({ ...formData, vaccine: value })}>
-              <SelectTrigger>
-                <SelectValue placeholder={t("form.selectVaccine", language)} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="BCG">BCG</SelectItem>
-                <SelectItem value="OPV (Oral Polio)">OPV (Oral Polio)</SelectItem>
-                <SelectItem value="Penta (DPT-HepB-Hib)">Penta (DPT-HepB-Hib)</SelectItem>
-                <SelectItem value="PCV (Pneumococcal)">PCV (Pneumococcal)</SelectItem>
-                <SelectItem value="Rotavirus">Rotavirus</SelectItem>
-                <SelectItem value="Measles-Rubella">Measles-Rubella</SelectItem>
-                <SelectItem value="IPV (Inactivated Polio)">IPV (Inactivated Polio)</SelectItem>
-                <SelectItem value="Yellow Fever">Yellow Fever</SelectItem>
-              </SelectContent>
-            </Select>
+            {isLoadingVaccines ? (
+              <div className="relative">
+                <div className="h-10 bg-muted animate-pulse rounded-md" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                </div>
+              </div>
+            ) : (
+              <Select
+                value={formData.vaccine_id}
+                onValueChange={(value) => setFormData({ ...formData, vaccine_id: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a vaccine" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableVaccines.map((vaccine) => (
+                    <SelectItem key={vaccine.id} value={vaccine.id.toString()}>
+                      {vaccine.name} {vaccine.code && `(${vaccine.code})`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -108,7 +167,8 @@ export function AddStockForm() {
             <Input
               id="quantity"
               type="number"
-              placeholder="e.g., 500"
+              min="1"
+              placeholder="e.g., 100"
               value={formData.quantity}
               onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
               required
@@ -121,107 +181,42 @@ export function AddStockForm() {
             <Label htmlFor="batchNumber">Batch Number *</Label>
             <Input
               id="batchNumber"
-              placeholder="e.g., BCG-2024-001"
+              placeholder="e.g., BATCH-2026-X"
               value={formData.batchNumber}
-              onChange={(e) => setFormData({ ...formData, batchNumber: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, batchNumber: e.target.value.toUpperCase() })}
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="manufacturer">Manufacturer *</Label>
-            <Input
-              id="manufacturer"
-              placeholder="e.g., Serum Institute"
-              value={formData.manufacturer}
-              onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })}
-              required
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-foreground">{t("form.dateInformation", language)}</h3>
-
-        <div className="grid md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="receivedDate">{t("form.receivedDate", language)} *</Label>
-            <Input
-              id="receivedDate"
-              type="date"
-              value={formData.receivedDate}
-              onChange={(e) => setFormData({ ...formData, receivedDate: e.target.value })}
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="expiryDate">{t("form.expiryDate", language)} *</Label>
+            <Label htmlFor="expiryDate">Expiry Date *</Label>
             <Input
               id="expiryDate"
               type="date"
               value={formData.expiryDate}
               onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
+              min={new Date().toISOString().split("T")[0]}
               required
             />
           </div>
         </div>
-      </div>
-
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-foreground">{t("form.storageInformation", language)}</h3>
-
-        <div className="grid md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="supplier">Supplier</Label>
-            <Input
-              id="supplier"
-              placeholder="Supplier name"
-              value={formData.supplier}
-              onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="storageLocation">{t("form.selectLocation", language)} *</Label>
-            <Select
-              value={formData.storageLocation}
-              onValueChange={(value) => setFormData({ ...formData, storageLocation: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={t("form.selectLocation", language)} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Main Refrigerator">Main Refrigerator</SelectItem>
-                <SelectItem value="Backup Refrigerator">Backup Refrigerator</SelectItem>
-                <SelectItem value="Freezer">Freezer</SelectItem>
-                <SelectItem value="Cold Room">Cold Room</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
 
         <div className="space-y-2">
-          <Label htmlFor="temperature">Storage Temperature (°C) *</Label>
+          <Label htmlFor="supplier">Supplier (Optional)</Label>
           <Input
-            id="temperature"
-            type="number"
-            step="0.1"
-            placeholder="e.g., 2-8"
-            value={formData.temperature}
-            onChange={(e) => setFormData({ ...formData, temperature: e.target.value })}
-            required
+            id="supplier"
+            placeholder="e.g., Global Health Supply"
+            value={formData.supplier}
+            onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
           />
-          <p className="text-xs text-muted-foreground">Ensure temperature is within recommended range</p>
         </div>
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-foreground">{t("form.additionalInformation", language)}</h3>
+        <h3 className="text-lg font-semibold text-foreground">Additional Information</h3>
 
         <div className="space-y-2">
-          <Label htmlFor="notes">Notes</Label>
+          <Label htmlFor="notes">Notes (Optional)</Label>
           <Textarea
             id="notes"
             placeholder="Any additional information about this stock..."
@@ -232,12 +227,19 @@ export function AddStockForm() {
         </div>
       </div>
 
-      <div className="flex gap-4">
-        <Button type="submit" disabled={loading}>
-          {loading ? t("form.addingStock", language) : t("form.addStock", language)}
+      <div className="flex gap-4 pt-4 border-t">
+        <Button type="submit" disabled={loading} className="min-w-[140px]">
+          {loading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Adding Stock...
+            </>
+          ) : (
+            "Add Stock"
+          )}
         </Button>
         <Button type="button" variant="outline" onClick={() => router.back()}>
-          {t("form.cancel", language)}
+          Cancel
         </Button>
       </div>
     </form>

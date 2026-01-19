@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Search, Edit, TrendingUp, TrendingDown } from "lucide-react"
+import { Search, Edit, TrendingUp, TrendingDown, Loader2, Package } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import { useLanguage } from "@/lib/language-context"
 import { t } from "@/lib/translations"
@@ -15,7 +15,7 @@ import { useInventory, type VaccineStock } from "@/lib/inventory-context"
 
 export function VaccineStockList() {
   const { language } = useLanguage()
-  const { stock } = useInventory()
+  const { stock, isLoading } = useInventory()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedVaccine, setSelectedVaccine] = useState<VaccineStock | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -55,9 +55,24 @@ export function VaccineStockList() {
         </div>
 
         <div className="space-y-4">
-          {filteredStock.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <p>No vaccine stock found. Add stock to get started.</p>
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-12 space-y-4">
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+              <div className="space-y-3 w-full">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-32 bg-muted animate-pulse rounded-lg" />
+                ))}
+              </div>
+            </div>
+          ) : filteredStock.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 space-y-4">
+              <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+                <Package className="h-10 w-10 text-muted-foreground" />
+              </div>
+              <div className="text-center space-y-2">
+                <p className="font-semibold text-foreground">No vaccine stock found</p>
+                <p className="text-sm text-muted-foreground">Add stock to get started</p>
+              </div>
             </div>
           ) : (
             filteredStock.map((vaccine) => {
@@ -95,23 +110,37 @@ export function VaccineStockList() {
 
                       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm mb-3">
                         <div>
-                          <p className="text-muted-foreground">{t("inventory.batchNumber", language)}</p>
-                          <p className="font-medium text-foreground">{vaccine.batchNumber}</p>
+                          <p className="text-muted-foreground">{t("inventory.batchNumber", language) || "Batch Number"}</p>
+                          <p className="font-medium text-foreground font-mono">{vaccine.batchNumber}</p>
                         </div>
                         <div>
-                          <p className="text-muted-foreground">{t("inventory.quantity", language)}</p>
+                          <p className="text-muted-foreground">{t("inventory.quantity", language) || "Quantity"}</p>
                           <p className="font-medium text-foreground">
-                            {vaccine.quantity} / {vaccine.minStock} {t("inventory.min", language)}
+                            {vaccine.quantity} / {vaccine.minStock} {t("inventory.min", language) || "min"}
                           </p>
                         </div>
                         <div>
-                          <p className="text-muted-foreground">{t("form.expiryDate", language)}</p>
-                          <p className="font-medium text-foreground">{vaccine.expiryDate}</p>
+                          <p className="text-muted-foreground">{t("form.expiryDate", language) || "Expiry Date"}</p>
+                          <p className="font-medium text-foreground">
+                            {vaccine.expiryDate
+                              ? new Date(vaccine.expiryDate).toLocaleDateString("en-US", {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                })
+                              : "-"}
+                          </p>
                         </div>
                         <div>
-                          <p className="text-muted-foreground">{t("inventory.manufacturer", language)}</p>
-                          <p className="font-medium text-foreground">{vaccine.manufacturer}</p>
+                          <p className="text-muted-foreground">{t("inventory.manufacturer", language) || "Manufacturer"}</p>
+                          <p className="font-medium text-foreground">{vaccine.manufacturer || "-"}</p>
                         </div>
+                        {vaccine.supplier && (
+                          <div>
+                            <p className="text-muted-foreground">Supplier</p>
+                            <p className="font-medium text-foreground">{vaccine.supplier}</p>
+                          </div>
+                        )}
                       </div>
 
                       <div className="space-y-2">

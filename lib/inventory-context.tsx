@@ -1,7 +1,8 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState } from "react"
+import { createContext, useContext, useState, useEffect } from "react"
+import { getInventory, getStockAlerts } from "./healthcare-worker-api"
 
 export interface VaccineStock {
   id: string
@@ -25,6 +26,9 @@ interface InventoryContextType {
   addStock: (stock: Omit<VaccineStock, "id" | "status">) => void
   updateStock: (id: string, updates: Partial<VaccineStock>) => void
   deleteStock: (id: string) => void
+  isLoading: boolean
+  error: string | null
+  refreshStock: () => Promise<void>
 }
 
 const InventoryContext = createContext<InventoryContextType | undefined>(undefined)
@@ -99,7 +103,102 @@ const initialStock: VaccineStock[] = [
 ]
 
 export function InventoryProvider({ children }: { children: React.ReactNode }) {
-  const [stock, setStock] = useState<VaccineStock[]>(initialStock)
+  const [stock, setStock] = useState<VaccineStock[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const refreshStock = async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const [inventoryRes, alertsRes] = await Promise.all([getInventory(), getStockAlerts()])
+
+      if (inventoryRes.error) {
+        // Handle different error formats
+        let errorMessage = "Failed to load inventory"
+        
+        if (typeof inventoryRes.error === "string") {
+          errorMessage = inventoryRes.error
+        } else if (inventoryRes.error && typeof inventoryRes.error === "object") {
+          // Check if error has a message property
+          if ("message" in inventoryRes.error && inventoryRes.error.message) {
+            errorMessage = inventoryRes.error.message
+          } else if ("status" in inventoryRes.error) {
+            // If we have a status code, provide more context
+            const status = inventoryRes.error.status
+            errorMessage = status === 401 || status === 403 
+              ? "Unauthorized access. Please log in again."
+              : status === 404
+              ? "Inventory endpoint not found"
+              : status >= 500
+              ? "Server error. Please try again later."
+              : `Failed to load inventory (${status})`
+          } else if (Object.keys(inventoryRes.error).length > 0) {
+            // If error object has other properties, stringify it
+            errorMessage = JSON.stringify(inventoryRes.error)
+          }
+        }
+        
+        console.error("[InventoryContext] Error fetching inventory:", {
+          error: inventoryRes.error,
+          message: errorMessage,
+          status: inventoryRes.status,
+        })
+        setError(errorMessage)
+        setStock([])
+        return
+      }
+
+      if (inventoryRes.data) {
+        // API returns { success: true, data: [...] }
+        const responseData = inventoryRes.data as any
+        const inventoryArray = Array.isArray(responseData.data) ? responseData.data : Array.isArray(responseData) ? responseData : []
+
+        // Transform API data to match VaccineStock interface
+        // API structure: { id, vaccine: {id, name, code}, batch_number, quantity, min_stock, expiry_date, status, etc. }
+        const transformedStock: VaccineStock[] = inventoryArray.map((item: any) => {
+          const quantity = item.quantity || 0
+          const minStock = item.min_stock || item.minStock || 10
+          // Use API status if available, otherwise calculate
+          const status =
+            item.status === "adequate" || item.status === "low" || item.status === "critical"
+              ? item.status
+              : getStockStatus(quantity, minStock)
+
+          return {
+            id: item.id?.toString() || Date.now().toString(),
+            name: item.vaccine?.name || item.vaccineName || "Unknown",
+            batchNumber: item.batch_number || item.batchNumber || "-",
+            quantity,
+            minStock,
+            expiryDate: item.expiry_date || item.expiryDate || "",
+            manufacturer: item.manufacturer || "Unknown",
+            status: status as "adequate" | "low" | "critical",
+            consumption: item.consumption || 0,
+            supplier: item.supplier,
+            storageLocation: item.storage_location || item.storageLocation,
+            temperature: item.temperature,
+            notes: item.notes,
+            receivedDate: item.received_date || item.receivedDate,
+          }
+        })
+
+        setStock(transformedStock)
+      } else {
+        setStock([])
+      }
+    } catch (err) {
+      console.error("[InventoryContext] Error:", err)
+      setError(err instanceof Error ? err.message : "Failed to load inventory")
+      setStock([])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    refreshStock()
+  }, [])
 
   const getStockStatus = (quantity: number, minStock: number): "adequate" | "low" | "critical" => {
     if (quantity === 0) return "critical"
@@ -132,7 +231,9 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <InventoryContext.Provider value={{ stock, addStock, updateStock, deleteStock }}>
+    <InventoryContext.Provider
+      value={{ stock, addStock, updateStock, deleteStock, isLoading, error, refreshStock }}
+    >
       {children}
     </InventoryContext.Provider>
   )

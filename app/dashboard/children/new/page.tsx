@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button"
 import { useLanguage } from "@/lib/language-context"
 import { t } from "@/lib/translations"
 import { RoleProtected } from "@/lib/role-protected"
-import { useRouter } from "next/router"
-import { ArrowLeft } from 'lucide-react'
+import { useRouter } from "next/navigation"
+import { ArrowLeft } from "lucide-react"
 
 export default function NewChildPage() {
   const { language } = useLanguage()

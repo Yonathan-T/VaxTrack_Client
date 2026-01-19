@@ -39,13 +39,9 @@ export default function ChildDetailPage({ params: paramsPromise }: { params: Pro
       {isParent ? (
         <ParentChildDetails childId={params.id} />
       ) : (
-        <div className="grid lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-1">
-            <ChildProfile childId={params.id} />
-          </div>
-          <div className="lg:col-span-2">
-            <VaccinationHistory childId={params.id} />
-          </div>
+        <div className="space-y-6">
+          <ChildProfile childId={params.id} />
+          <VaccinationHistory childId={params.id} />
         </div>
       )}
     </div>

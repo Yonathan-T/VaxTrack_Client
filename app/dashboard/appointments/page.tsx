@@ -15,7 +15,7 @@ import { useUser } from "@/lib/user-context"
 export default function AppointmentsPage() {
   const { language } = useLanguage()
   const { user } = useUser()
-  const [selectedDate, setSelectedDate] = useState<number>(15)
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
 
   const canSchedule = user?.role === "healthcare_worker" || user?.role === "administrator"
 
@@ -39,12 +39,12 @@ export default function AppointmentsPage() {
 
         <AppointmentStats />
 
-        <div className="space-y-6">
-          <div className="w-1/2">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-1">
             <AppointmentCalendar onDateSelect={setSelectedDate} selectedDate={selectedDate} />
           </div>
 
-          <div>
+          <div className="lg:col-span-2">
             <AppointmentsList selectedDate={selectedDate} />
           </div>
         </div>

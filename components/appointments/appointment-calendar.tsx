@@ -3,28 +3,22 @@
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, ChevronRight } from "lucide-react"
-import { useState } from "react"
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
+import { useState, useEffect } from "react"
 import { useLanguage } from "@/lib/language-context"
 import { t } from "@/lib/translations"
 import { cn } from "@/lib/utils"
-
-const mockAppointments = [
-  { date: 15, count: 3, status: "scheduled" },
-  { date: 16, count: 5, status: "scheduled" },
-  { date: 17, count: 2, status: "scheduled" },
-  { date: 20, count: 8, status: "scheduled" },
-  { date: 22, count: 4, status: "scheduled" },
-  { date: 25, count: 6, status: "scheduled" },
-]
+import { getAppointmentsList, Appointment } from "@/lib/healthcare-worker-api"
 
 interface AppointmentCalendarProps {
-  onDateSelect?: (date: number) => void
-  selectedDate?: number
+  onDateSelect?: (date: Date) => void
+  selectedDate?: Date
 }
 
 export function AppointmentCalendar({ onDateSelect, selectedDate }: AppointmentCalendarProps) {
   const { language } = useLanguage()
+  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
   const today = new Date()
   const [currentDate, setCurrentDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
@@ -49,8 +43,52 @@ export function AppointmentCalendar({ onDateSelect, selectedDate }: AppointmentC
     t("calendar.saturday", language),
   ]
 
-  const getAppointmentForDay = (day: number) => {
-    return mockAppointments.find((apt) => apt.date === day)
+  // Fetch appointments for the current month
+  useEffect(() => {
+    const fetchAppointments = async () => {
+      setIsLoading(true)
+      try {
+        const response = await getAppointmentsList()
+        if (response.error) {
+          console.error("[AppointmentCalendar] Error fetching appointments:", response.error)
+          setAppointments([])
+          return
+        }
+
+        const appointmentsData = response.data as any
+        const appointmentsArray = Array.isArray(appointmentsData?.data) 
+          ? appointmentsData.data 
+          : Array.isArray(appointmentsData) 
+          ? appointmentsData 
+          : []
+
+        setAppointments(appointmentsArray)
+      } catch (error) {
+        console.error("[AppointmentCalendar] Error:", error)
+        setAppointments([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchAppointments()
+  }, [currentDate])
+
+  const getAppointmentCountForDay = (day: number): number => {
+    const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
+    const dateStr = date.toISOString().split('T')[0]
+    
+    return appointments.filter((apt) => {
+      const aptDate = apt.scheduled_date || apt.appointment_date || apt.dateTime
+      if (!aptDate) return false
+      
+      const appointmentDate = new Date(aptDate)
+      return (
+        appointmentDate.getDate() === day &&
+        appointmentDate.getMonth() === currentDate.getMonth() &&
+        appointmentDate.getFullYear() === currentDate.getFullYear()
+      )
+    }).length
   }
 
   const handlePreviousMonth = () => {
@@ -63,7 +101,8 @@ export function AppointmentCalendar({ onDateSelect, selectedDate }: AppointmentC
 
   const handleDateClick = (day: number) => {
     if (onDateSelect) {
-      onDateSelect(day)
+      const selected = new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
+      onDateSelect(selected)
     }
   }
 
@@ -74,6 +113,17 @@ export function AppointmentCalendar({ onDateSelect, selectedDate }: AppointmentC
       currentDate.getFullYear() === today.getFullYear()
     )
   }
+
+  const isSelected = (day: number) => {
+    if (!selectedDate) return false
+    return (
+      day === selectedDate.getDate() &&
+      currentDate.getMonth() === selectedDate.getMonth() &&
+      currentDate.getFullYear() === selectedDate.getFullYear()
+    )
+  }
+
+  const totalAppointments = appointments.length
 
   return (
     <Card className="p-4">
@@ -113,27 +163,29 @@ export function AppointmentCalendar({ onDateSelect, selectedDate }: AppointmentC
         ))}
 
         {days.map((day) => {
-          const appointment = getAppointmentForDay(day)
+          const appointmentCount = getAppointmentCountForDay(day)
           const todayFlag = isToday(day)
-          const isSelected = selectedDate === day
+          const selected = isSelected(day)
 
           return (
             <button
               key={day}
               onClick={() => handleDateClick(day)}
+              disabled={isLoading}
               className={cn(
                 "h-10 rounded-md border border-border p-1 hover:bg-muted transition-colors relative cursor-pointer flex items-center justify-center",
                 todayFlag && "border-primary bg-primary/5",
-                isSelected && "border-primary bg-primary/10 ring-2 ring-primary",
+                selected && "border-primary bg-primary/10 ring-2 ring-primary",
+                isLoading && "opacity-50 cursor-not-allowed"
               )}
             >
               <div className="text-xs font-medium text-foreground">{day}</div>
-              {appointment && (
+              {appointmentCount > 0 && (
                 <Badge
                   variant="secondary"
                   className="absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[10px] px-1 h-3 leading-none"
                 >
-                  {appointment.count}
+                  {appointmentCount}
                 </Badge>
               )}
             </button>
@@ -141,6 +193,13 @@ export function AppointmentCalendar({ onDateSelect, selectedDate }: AppointmentC
         })}
       </div>
 
+      {isLoading && (
+        <div className="mt-3 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          <span>{t("common.loading", language) || "Loading..."}</span>
+        </div>
+      )}
+      
       <div className="mt-3 flex items-center gap-3 text-xs">
         <div className="flex items-center gap-1.5">
           <div className="w-2.5 h-2.5 rounded-full bg-primary" />
@@ -148,7 +207,7 @@ export function AppointmentCalendar({ onDateSelect, selectedDate }: AppointmentC
         </div>
         <div className="flex items-center gap-1.5">
           <Badge variant="secondary" className="text-[10px] h-3 px-1">
-            3
+            {totalAppointments}
           </Badge>
           <span className="text-muted-foreground">{t("calendar.appointments", language)}</span>
         </div>

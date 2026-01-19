@@ -1,37 +1,111 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Search, Eye } from "lucide-react"
+import { Search, Eye, RefreshCw, Loader2 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import Link from "next/link"
 import { useLanguage } from "@/lib/language-context"
 import { t } from "@/lib/translations"
-import { useChildren } from "@/lib/children-context"
-import { useVaccinations } from "@/lib/vaccinations-context"
+import { getChildrenList, getChildProfile, type ChildProfile } from "@/lib/healthcare-worker-api"
+import { useToast } from "@/hooks/use-toast"
+import { cn } from "@/lib/utils"
+
+interface VaccinationRecord {
+  id: string
+  childId: string
+  childName: string
+  vaccine: string
+  date: string
+  batchNumber: string
+  administeredBy: string
+  nextDue: string
+  status: "completed" | "scheduled" | "overdue"
+}
 
 export function VaccinationsList() {
   const { language } = useLanguage()
-  const { children } = useChildren()
-  const { vaccinations } = useVaccinations()
+  const { toast } = useToast()
   const [searchQuery, setSearchQuery] = useState("")
   const [filterStatus, setFilterStatus] = useState("all")
+  const [vaccinations, setVaccinations] = useState<VaccinationRecord[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
-  const childNameMap = children.reduce(
-    (acc, child) => {
-      acc[child.id] = `${child.firstName} ${child.lastName}`
-      return acc
-    },
-    {} as Record<string, string>,
-  )
+  const fetchVaccinations = async (showRefreshIndicator = false) => {
+    try {
+      if (showRefreshIndicator) {
+        setIsRefreshing(true)
+      } else {
+        setIsLoading(true)
+      }
+
+      // Get all children first
+      const childrenRes = await getChildrenList()
+
+      if (childrenRes.error) {
+        console.error("[VaccinationsList] Error fetching children:", childrenRes.error)
+        setVaccinations([])
+        return
+      }
+
+      const childrenData = (childrenRes.data as any).children || childrenRes.data || []
+      const childrenArray = Array.isArray(childrenData) ? childrenData : []
+
+      // Fetch vaccination records for each child
+      const vaccinationRecords: VaccinationRecord[] = []
+
+      for (const child of childrenArray) {
+        try {
+          const childProfileRes = await getChildProfile(child.id)
+          if (childProfileRes.data) {
+            const childData = childProfileRes.data as any
+            // Check if child has vaccination records
+            if (childData.vaccination_records && Array.isArray(childData.vaccination_records)) {
+              childData.vaccination_records.forEach((record: any) => {
+                vaccinationRecords.push({
+                  id: record.id?.toString() || `${child.id}_${Date.now()}`,
+                  childId: child.id,
+                  childName: child.name || childData.name || "Unknown",
+                  vaccine: record.vaccine?.name || record.vaccineName || "Unknown",
+                  date: record.date_administered || record.dateAdministered || "-",
+                  batchNumber: record.batch_number || record.batchNumber || "-",
+                  administeredBy: record.administered_by || record.administeredBy || "-",
+                  nextDue: record.next_due_date || record.nextDueDate || "-",
+                  status: record.status === "completed" ? "completed" : record.status === "overdue" ? "overdue" : "scheduled",
+                })
+              })
+            }
+          }
+        } catch (err) {
+          console.error(`[VaccinationsList] Error fetching child ${child.id}:`, err)
+        }
+      }
+
+      setVaccinations(vaccinationRecords)
+    } catch (error) {
+      console.error("[VaccinationsList] Error:", error)
+      setVaccinations([])
+    } finally {
+      if (showRefreshIndicator) {
+        setIsRefreshing(false)
+      } else {
+        setIsLoading(false)
+      }
+    }
+  }
+
+  useEffect(() => {
+    fetchVaccinations()
+  }, [])
+
+  const handleRefresh = () => {
+    fetchVaccinations(true)
+  }
 
   const filteredVaccinations = vaccinations
-    .map((vaccination) => ({
-      ...vaccination,
-      childName: childNameMap[vaccination.childId] || "Unknown Child",
-    }))
     .filter((vaccination) => {
       const matchesSearch =
         vaccination.childName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -40,6 +114,26 @@ export function VaccinationsList() {
       return matchesSearch && matchesStatus
     })
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <div className="h-10 bg-muted animate-pulse rounded-md" />
+          </div>
+          <div className="h-10 w-24 bg-muted animate-pulse rounded-md" />
+        </div>
+        <div className="border rounded-lg overflow-hidden">
+          <div className="space-y-3 p-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-16 bg-muted animate-pulse rounded-lg" />
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">
@@ -64,6 +158,10 @@ export function VaccinationsList() {
             <SelectItem value="overdue">{t("children.overdue", language)}</SelectItem>
           </SelectContent>
         </Select>
+        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing} className="gap-2">
+          <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+          {isRefreshing ? "..." : t("common.refresh", language) || "Refresh"}
+        </Button>
       </div>
 
       <div className="border rounded-lg overflow-hidden">
@@ -109,12 +207,20 @@ export function VaccinationsList() {
                   <tr key={vaccination.id} className="border-b hover:bg-muted/50 transition-colors">
                     <td className="px-3 py-2 font-medium text-foreground">{vaccination.childName}</td>
                     <td className="px-3 py-2 text-foreground">{vaccination.vaccine}</td>
-                    <td className="px-3 py-2 text-foreground">{vaccination.date}</td>
-                    <td className="px-3 py-2 font-mono font-semibold text-primary bg-muted/30">
-                      {vaccination.batchNumber}
+                    <td className="px-3 py-2 text-foreground">
+                      {vaccination.date && vaccination.date !== "-"
+                        ? new Date(vaccination.date).toLocaleDateString()
+                        : "-"}
                     </td>
-                    <td className="px-3 py-2 text-foreground">{vaccination.administeredBy}</td>
-                    <td className="px-3 py-2 text-foreground">{vaccination.nextDue}</td>
+                    <td className="px-3 py-2 font-mono font-semibold text-primary bg-muted/30">
+                      {vaccination.batchNumber || "-"}
+                    </td>
+                    <td className="px-3 py-2 text-foreground">{vaccination.administeredBy || "-"}</td>
+                    <td className="px-3 py-2 text-foreground">
+                      {vaccination.nextDue && vaccination.nextDue !== "-"
+                        ? new Date(vaccination.nextDue).toLocaleDateString()
+                        : "-"}
+                    </td>
                     <td className="px-3 py-2">
                       <Badge
                         variant={

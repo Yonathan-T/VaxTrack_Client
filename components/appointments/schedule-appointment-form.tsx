@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle, Search } from "lucide-react"
+import { AlertCircle, Search, Loader2 } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useLanguage } from "@/lib/language-context"
@@ -127,7 +127,7 @@ export function ScheduleAppointmentForm() {
       )}
 
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-foreground">{t("form.selectChild", language)}</h3>
+        <h3 className="text-lg font-semibold text-foreground">Select Child</h3>
         <div className="flex gap-2">
           <Input
             placeholder={t("form.searchByChildName", language)}
@@ -163,13 +163,13 @@ export function ScheduleAppointmentForm() {
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-foreground">{t("form.appointmentDetails", language)}</h3>
+        <h3 className="text-lg font-semibold text-foreground">Appointment Details</h3>
 
         <div className="space-y-2">
-          <Label htmlFor="vaccine">{t("form.selectVaccine", language)} *</Label>
+          <Label htmlFor="vaccine">Select Vaccine *</Label>
           <Select value={formData.vaccine} onValueChange={(value) => setFormData({ ...formData, vaccine: value })}>
             <SelectTrigger>
-              <SelectValue placeholder={t("form.selectVaccine", language)} />
+              <SelectValue placeholder="Select a vaccine" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="bcg">BCG</SelectItem>
@@ -202,7 +202,7 @@ export function ScheduleAppointmentForm() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="appointmentTime">{t("form.appointmentTime", language)} *</Label>
+            <Label htmlFor="appointmentTime">Appointment Time *</Label>
             <Input
               id="appointmentTime"
               type="time"
@@ -214,10 +214,10 @@ export function ScheduleAppointmentForm() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="facility">{t("form.selectFacility", language)} *</Label>
+          <Label htmlFor="facility">Select Facility *</Label>
           <Select value={formData.facility} onValueChange={(value) => setFormData({ ...formData, facility: value })}>
             <SelectTrigger>
-              <SelectValue placeholder={t("form.selectFacility", language)} />
+              <SelectValue placeholder="Select a facility" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="addis_ketema_hc">Addis Ketema Health Center</SelectItem>
@@ -230,7 +230,7 @@ export function ScheduleAppointmentForm() {
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-foreground">{t("form.notificationSettings", language)}</h3>
+        <h3 className="text-lg font-semibold text-foreground">Notification Settings</h3>
 
         <div className="space-y-3">
           <div className="flex items-center space-x-2">
@@ -262,10 +262,10 @@ export function ScheduleAppointmentForm() {
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-foreground">{t("form.additionalInformation", language)}</h3>
+        <h3 className="text-lg font-semibold text-foreground">Additional Information</h3>
 
         <div className="space-y-2">
-          <Label htmlFor="notes">Notes ({t("form.optional", language)})</Label>
+          <Label htmlFor="notes">Notes (Optional)</Label>
           <Textarea
             id="notes"
             placeholder="Any special instructions or notes..."
@@ -277,11 +277,18 @@ export function ScheduleAppointmentForm() {
       </div>
 
       <div className="flex gap-4">
-        <Button type="submit" disabled={loading || !selectedChild}>
-          {loading ? t("form.scheduling", language) : t("form.scheduleAppointment", language)}
+        <Button type="submit" disabled={loading || !selectedChild} className="min-w-[180px]">
+          {loading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Scheduling...
+            </>
+          ) : (
+            "Schedule Appointment"
+          )}
         </Button>
         <Button type="button" variant="outline" onClick={() => router.back()}>
-          {t("form.cancel", language)}
+          Cancel
         </Button>
       </div>
     </form>

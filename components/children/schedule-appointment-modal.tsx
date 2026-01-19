@@ -41,10 +41,10 @@ export function ScheduleAppointmentModal({ isOpen, onClose, vaccine }: ScheduleA
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>{t("form.selectVaccine", language)}</Label>
+              <Label>Select Vaccine</Label>
               <Select defaultValue={vaccine?.vaccine?.toLowerCase()}>
                 <SelectTrigger>
-                  <SelectValue placeholder={t("form.selectVaccine", language)} />
+                  <SelectValue placeholder="Select a vaccine" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="penta2">Penta 2</SelectItem>
@@ -55,18 +55,18 @@ export function ScheduleAppointmentModal({ isOpen, onClose, vaccine }: ScheduleA
               </Select>
             </div>
             <div>
-              <Label>{t("form.appointmentDate", language)}</Label>
+              <Label>Appointment Date</Label>
               <Input type="date" defaultValue={vaccine?.dueDate} />
             </div>
             <div>
-              <Label>{t("form.appointmentTime", language)}</Label>
+              <Label>Appointment Time</Label>
               <Input type="time" />
             </div>
             <div>
-              <Label>{t("form.selectFacility", language)}</Label>
+              <Label>Select Facility</Label>
               <Select>
                 <SelectTrigger>
-                  <SelectValue placeholder={t("form.selectFacility", language)} />
+                  <SelectValue placeholder="Select a facility" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="addis-ketema">Addis Ketema Health Center</SelectItem>
@@ -84,10 +84,10 @@ export function ScheduleAppointmentModal({ isOpen, onClose, vaccine }: ScheduleA
 
           <div className="flex gap-3 justify-end">
             <Button type="button" variant="outline" onClick={onClose}>
-              {t("form.cancel", language)}
+              Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? t("form.scheduling", language) : t("form.submit", language)}
+              {isSubmitting ? "Scheduling..." : "Schedule Appointment"}
             </Button>
           </div>
         </form>

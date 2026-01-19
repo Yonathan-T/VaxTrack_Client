@@ -149,6 +149,7 @@ export const translations = {
     "children.subtitle": "Track and manage vaccination history",
     "children.registerChild": "Register Child",
     "children.vaccineId": "Vaccine ID",
+    "children.id": "Child ID",
     "children.registerNewChild": "Register New Child",
     "children.enterChildGuardianInfo": "Enter child and parent information",
     "children.dateOfBirth": "Date of Birth",
