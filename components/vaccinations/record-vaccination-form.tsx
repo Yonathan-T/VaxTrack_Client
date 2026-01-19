@@ -14,27 +14,8 @@ import { AlertCircle, Search, Loader2 } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { useLanguage } from "@/lib/language-context"
 import { t } from "@/lib/translations"
-import { getChildrenList, administerVaccine, getChildProfile } from "@/lib/healthcare-worker-api"
+import { getChildrenList, getInventory, recordVaccination } from "@/lib/healthcare-worker-api"
 import { useToast } from "@/hooks/use-toast"
-
-const ethiopianVaccines = [
-  { value: "bcg", label: "BCG", ageGroup: "At birth" },
-  { value: "opv0", label: "OPV 0", ageGroup: "At birth" },
-  { value: "penta1", label: "Penta 1", ageGroup: "6 weeks" },
-  { value: "opv1", label: "OPV 1", ageGroup: "6 weeks" },
-  { value: "pcv1", label: "PCV 1", ageGroup: "6 weeks" },
-  { value: "rota1", label: "Rota 1", ageGroup: "6 weeks" },
-  { value: "penta2", label: "Penta 2", ageGroup: "10 weeks" },
-  { value: "opv2", label: "OPV 2", ageGroup: "10 weeks" },
-  { value: "pcv2", label: "PCV 2", ageGroup: "10 weeks" },
-  { value: "rota2", label: "Rota 2", ageGroup: "10 weeks" },
-  { value: "penta3", label: "Penta 3", ageGroup: "14 weeks" },
-  { value: "opv3", label: "OPV 3", ageGroup: "14 weeks" },
-  { value: "pcv3", label: "PCV 3", ageGroup: "14 weeks" },
-  { value: "ipv", label: "IPV", ageGroup: "14 weeks" },
-  { value: "measles1", label: "Measles 1", ageGroup: "9 months" },
-  { value: "measles2", label: "Measles 2", ageGroup: "15 months" },
-]
 
 export function RecordVaccinationForm() {
   const router = useRouter()
@@ -49,13 +30,22 @@ export function RecordVaccinationForm() {
   const [isLoadingChildren, setIsLoadingChildren] = useState(true)
   const [showResults, setShowResults] = useState(false)
 
+  // Vaccine inventory search state
+  const [searchVaccine, setSearchVaccine] = useState("")
+  const [selectedVaccine, setSelectedVaccine] = useState<any>(null)
+  const [inventory, setInventory] = useState<any[]>([])
+  const [filteredInventory, setFilteredInventory] = useState<any[]>([])
+  const [isLoadingInventory, setIsLoadingInventory] = useState(true)
+  const [showVaccineResults, setShowVaccineResults] = useState(false)
+
   const [formData, setFormData] = useState({
-    vaccine: "",
-    dateAdministered: new Date().toISOString().split('T')[0],
-    batchNumber: "",
-    expiryDate: "",
-    site: "",
-    dose: "",
+    vaccine_id: undefined as number | undefined,
+    date_administered: new Date().toISOString().split('T')[0],
+    batch_number: "",
+    expiry_date: "",
+    administration_site: "",
+    dose_ml: "" as string | number,
+    dose_number: "" as string | number,
     notes: "",
   })
 
@@ -71,7 +61,6 @@ export function RecordVaccinationForm() {
           setAllChildren([])
           return
         }
-
         const responseData = response.data as any
         const childrenData = responseData?.data || responseData?.children || responseData || []
         const childrenArray = Array.isArray(childrenData) ? childrenData : []
@@ -92,9 +81,54 @@ export function RecordVaccinationForm() {
     const now = new Date()
     setFormData(prev => ({
       ...prev,
-      dateAdministered: now.toISOString().split('T')[0],
+      date_administered: now.toISOString().split('T')[0],
     }))
   }, [])
+
+  // Fetch inventory for vaccine search
+  useEffect(() => {
+    const fetchInventory = async () => {
+      try {
+        setIsLoadingInventory(true)
+        const res = await getInventory()
+        if (res.error) {
+          console.error("[RecordVaccinationForm] Error fetching inventory:", res.error)
+          setInventory([])
+        } else {
+          const data = (res.data as any)?.inventory || (res.data as any)?.data || res.data || []
+          setInventory(Array.isArray(data) ? data : [])
+        }
+      } catch (e) {
+        console.error("[RecordVaccinationForm] Inventory error:", e)
+        setInventory([])
+      } finally {
+        setIsLoadingInventory(false)
+      }
+    }
+    fetchInventory()
+  }, [])
+
+  // Vaccine search debounce
+  useEffect(() => {
+    if (!searchVaccine.trim()) {
+      setFilteredInventory([])
+      return
+    }
+    if (selectedVaccine && (selectedVaccine.name || "").toLowerCase() === searchVaccine.toLowerCase().trim()) {
+      return
+    }
+    const id = setTimeout(() => {
+      const s = searchVaccine.toLowerCase().trim()
+      const filtered = inventory.filter((item: any) => {
+        const name = (item.vaccine?.name || item.vaccineName || item.name || "").toLowerCase()
+        const code = (item.vaccine?.code || item.code || "").toLowerCase()
+        const batch = (item.batch_number || item.batchNumber || "").toLowerCase()
+        return name.includes(s) || code.includes(s) || batch.includes(s)
+      })
+      setFilteredInventory(filtered)
+    }, 150)
+    return () => clearTimeout(id)
+  }, [searchVaccine, selectedVaccine, inventory])
 
   // Fast client-side live search with debouncing
   useEffect(() => {
@@ -184,6 +218,28 @@ export function RecordVaccinationForm() {
     setError("")
   }
 
+  const handleSelectVaccine = (item: any) => {
+    const vaccineName = item.vaccine?.name || item.vaccineName || item.name || "Vaccine"
+    const vaccineId = item.vaccine?.id || item.vaccine_id || item.id || item.vaccineId
+    const batch = item.batch_number || item.batchNumber || ""
+    const expiry = item.expiry_date || item.expiryDate || ""
+    setSelectedVaccine({
+      id: vaccineId,
+      name: vaccineName,
+      batch_number: batch,
+      expiry_date: expiry,
+    })
+    setFormData(prev => ({
+      ...prev,
+      vaccine_id: vaccineId ? Number(vaccineId) : undefined,
+      batch_number: batch,
+      expiry_date: expiry,
+    }))
+    setSearchVaccine(vaccineName)
+    setFilteredInventory([])
+    setShowVaccineResults(false)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
@@ -193,7 +249,7 @@ export function RecordVaccinationForm() {
       return
     }
 
-    if (!formData.vaccine || !formData.batchNumber || !formData.expiryDate || !formData.site) {
+    if (!formData.vaccine_id || !formData.batch_number || !formData.expiry_date || !formData.administration_site) {
       setError("Please fill in all required fields")
       return
     }
@@ -201,26 +257,18 @@ export function RecordVaccinationForm() {
     setLoading(true)
 
     try {
-      // First, get the child's profile to find vaccination records
-      const childProfileRes = await getChildProfile(selectedChild.id)
-
-      if (childProfileRes.error) {
-        setError(childProfileRes.error.message || "Failed to get child profile")
-        setLoading(false)
-        return
+      const payload: any = {
+        vaccine_id: formData.vaccine_id!,
+        date_administered: formData.date_administered,
+        batch_number: formData.batch_number,
+        administration_site: formData.administration_site,
+        expiry_date: formData.expiry_date,
+        notes: formData.notes || undefined,
       }
+      if (formData.dose_ml !== "" && formData.dose_ml !== undefined) payload.dose_ml = Number(formData.dose_ml)
+      if (formData.dose_number !== "" && formData.dose_number !== undefined) payload.dose_number = Number(formData.dose_number)
 
-      // For now, we'll need to create a vaccination record ID
-      // In a real scenario, the API would provide pending vaccination records
-      // For this implementation, we'll use a placeholder ID
-      // The actual API endpoint expects a vaccination record ID
-      const vaccinationRecordId = `vaccination_${Date.now()}`
-
-      const response = await administerVaccine(vaccinationRecordId, {
-        vaccineId: formData.vaccine, // This should be the vaccine ID from the API
-        batchNumber: formData.batchNumber,
-        dateAdministered: formData.dateAdministered,
-      })
+      const response = await recordVaccination(payload)
 
       if (response.error) {
         setError(response.error.message || "Failed to record vaccination")
@@ -229,8 +277,8 @@ export function RecordVaccinationForm() {
       }
 
       toast({
-        title: t("form.success", language) || "Success",
-        description: t("vaccinations.recordedSuccessfully", language) || "Vaccination recorded successfully",
+        title: "Success",
+        description: "Vaccination recorded successfully",
       })
 
       router.push("/dashboard/vaccinations")
@@ -370,86 +418,163 @@ export function RecordVaccinationForm() {
 
         <div className="grid md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="vaccine">Select Vaccine *</Label>
-            <Select value={formData.vaccine} onValueChange={(value) => setFormData({ ...formData, vaccine: value })}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a vaccine" />
-              </SelectTrigger>
-              <SelectContent>
-                {ethiopianVaccines.map((vaccine) => (
-                  <SelectItem key={vaccine.value} value={vaccine.value}>
-                    {vaccine.label} ({vaccine.ageGroup})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="vaccineSearch">Search Vaccine *</Label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="vaccineSearch"
+                placeholder={isLoadingInventory ? "Loading vaccines..." : "Type vaccine name, code, or batch..."}
+                value={searchVaccine}
+                onChange={(e) => {
+                  const v = e.target.value
+                  setSearchVaccine(v)
+                  if (v.trim() === "") {
+                    setFilteredInventory([])
+                    setSelectedVaccine(null)
+                    setFormData(prev => ({ ...prev, vaccine_id: undefined, batch_number: "", expiry_date: "" }))
+                    setShowVaccineResults(false)
+                  } else {
+                    setSelectedVaccine(null)
+                    setShowVaccineResults(true)
+                  }
+                }}
+                onFocus={() => {
+                  if (filteredInventory.length > 0 && searchVaccine.trim()) {
+                    setShowVaccineResults(true)
+                  }
+                }}
+                onBlur={() => {
+                  setTimeout(() => setShowVaccineResults(false), 200)
+                }}
+                className="pl-9"
+                disabled={!!selectedVaccine || isLoadingInventory}
+              />
+              {isLoadingInventory && (
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+              )}
+            {showVaccineResults && filteredInventory.length > 0 && (
+              <Card className="absolute left-0 right-0 z-50 mt-2 max-h-60 overflow-y-auto shadow-lg border bg-background">
+                <div className="p-2">
+                  <p className="text-xs text-muted-foreground px-2 py-1 mb-1">
+                    {filteredInventory.length} {filteredInventory.length === 1 ? "vaccine found" : "vaccines found"}
+                  </p>
+                  <div className="space-y-1">
+                    {filteredInventory.slice(0, 10).map((item: any) => {
+                      const name = item.vaccine?.name || item.vaccineName || item.name || "Vaccine"
+                      const code = item.vaccine?.code || item.code || ""
+                      const batch = item.batch_number || item.batchNumber || ""
+                      const expiry = item.expiry_date || item.expiryDate || ""
+                      return (
+                        <div
+                          key={`${item.id || item.vaccine_id || batch}`}
+                          className="p-3 rounded-lg hover:bg-muted cursor-pointer transition-colors border border-transparent hover:border-primary/20"
+                          onMouseDown={(e) => {
+                            e.preventDefault()
+                            handleSelectVaccine(item)
+                          }}
+                        >
+                          <p className="font-medium text-foreground">{name} {code && `(${code})`}</p>
+                          <p className="text-sm text-muted-foreground">Batch: {batch || "-"} • Expires: {expiry || "-"}</p>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {showVaccineResults && filteredInventory.length === 0 && searchVaccine.trim() && !isLoadingInventory && (
+              <Card className="absolute left-0 right-0 z-50 mt-2 shadow-lg border bg-background">
+                <div className="p-4 text-center text-sm text-muted-foreground">
+                  No vaccines found matching "{searchVaccine}"
+                </div>
+              </Card>
+            )}
+            </div>
+
+            {selectedVaccine && (
+              <Card className="p-3 bg-muted/40 border-primary/20">
+                <p className="text-sm text-foreground font-medium">{selectedVaccine.name}</p>
+                <p className="text-xs text-muted-foreground">Batch: {selectedVaccine.batch_number || "-"} • Expires: {selectedVaccine.expiry_date || "-"}</p>
+                <div className="mt-2">
+                  <Button type="button" variant="ghost" size="sm" onClick={() => {
+                    setSelectedVaccine(null)
+                    setSearchVaccine("")
+                    setFilteredInventory([])
+                    setFormData(prev => ({ ...prev, vaccine_id: undefined, batch_number: "", expiry_date: "" }))
+                  }}>Change</Button>
+                </div>
+              </Card>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="dateAdministered">Date Administered *</Label>
+            <Label htmlFor="date_administered">Date Administered *</Label>
             <Input
-              id="dateAdministered"
+              id="date_administered"
               type="date"
-              value={formData.dateAdministered}
-              onChange={(e) => setFormData({ ...formData, dateAdministered: e.target.value })}
+              value={formData.date_administered}
+              onChange={(e) => setFormData({ ...formData, date_administered: e.target.value })}
               required
-              disabled
-              className="bg-muted"
+              max={new Date().toISOString().split('T')[0]}
             />
-            <p className="text-xs text-muted-foreground">Automatically set to today's date</p>
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="batchNumber">Batch Number *</Label>
-            <Input
-              id="batchNumber"
-              placeholder="e.g., BCG-2024-001"
-              value={formData.batchNumber}
-              onChange={(e) => setFormData({ ...formData, batchNumber: e.target.value })}
-              required
-            />
+        {selectedVaccine && (
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Batch Number</Label>
+              <Input value={formData.batch_number} disabled className="bg-muted" />
+            </div>
+            <div className="space-y-2">
+              <Label>Expiry Date</Label>
+              <Input value={formData.expiry_date} disabled className="bg-muted" />
+            </div>
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="expiryDate">Expiry Date *</Label>
-            <Input
-              id="expiryDate"
-              type="date"
-              value={formData.expiryDate}
-              onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
-              required
-            />
-          </div>
-        </div>
+        )}
 
         <div className="grid md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="site">Administration Site *</Label>
-            <Select value={formData.site} onValueChange={(value) => setFormData({ ...formData, site: value })}>
+            <Select value={formData.administration_site} onValueChange={(value) => setFormData({ ...formData, administration_site: value })}>
               <SelectTrigger>
                 <SelectValue placeholder="Select administration site" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="left_arm">Left Upper Arm</SelectItem>
-                <SelectItem value="right_arm">Right Upper Arm</SelectItem>
-                <SelectItem value="left_thigh">Left Thigh</SelectItem>
-                <SelectItem value="right_thigh">Right Thigh</SelectItem>
-                <SelectItem value="oral">Oral</SelectItem>
+                <SelectItem value="Left arm">Left Upper Arm</SelectItem>
+                <SelectItem value="Right arm">Right Upper Arm</SelectItem>
+                <SelectItem value="Left thigh">Left Thigh</SelectItem>
+                <SelectItem value="Right thigh">Right Thigh</SelectItem>
+                <SelectItem value="Oral">Oral</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="dose">Dose (ml)</Label>
+            <Label htmlFor="dose_ml">Dose (ml)</Label>
             <Input
-              id="dose"
+              id="dose_ml"
               type="number"
-              step="0.1"
-              placeholder="e.g., 0.5"
-              value={formData.dose}
-              onChange={(e) => setFormData({ ...formData, dose: e.target.value })}
+              step="0.01"
+              placeholder="e.g., 0.50"
+              value={formData.dose_ml as any}
+              onChange={(e) => setFormData({ ...formData, dose_ml: e.target.value })}
+            />
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="dose_number">Dose Number</Label>
+            <Input
+              id="dose_number"
+              type="number"
+              step="1"
+              min={1}
+              placeholder="e.g., 1"
+              value={formData.dose_number as any}
+              onChange={(e) => setFormData({ ...formData, dose_number: e.target.value })}
             />
           </div>
         </div>
@@ -471,7 +596,7 @@ export function RecordVaccinationForm() {
       </div>
 
       <div className="flex gap-4">
-        <Button type="submit" disabled={loading || !selectedChild} className="min-w-[160px]">
+        <Button type="submit" disabled={loading || !selectedChild || !formData.vaccine_id} className="min-w-[160px]">
           {loading ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />

@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card"
 import { AlertCircle, Syringe, Package, Clock } from "lucide-react"
 import { useLanguage } from "@/lib/language-context"
 import { t } from "@/lib/translations"
+import { useRouter } from "next/navigation"
 
 interface RoleDashboardProps {
   language: string
@@ -11,6 +12,7 @@ interface RoleDashboardProps {
 
 export function NurseDashboard({ language: initialLanguage }: RoleDashboardProps) {
   const { language } = useLanguage()
+  const router = useRouter()
 
   return (
     <div className="space-y-8">
@@ -68,13 +70,19 @@ export function NurseDashboard({ language: initialLanguage }: RoleDashboardProps
       <Card className="p-6">
         <h3 className="text-lg font-semibold text-foreground mb-4">{t("dashboard.quickActions", language)}</h3>
         <div className="grid md:grid-cols-2 gap-4">
-          <div className="p-4 border border-border rounded-lg hover:bg-muted cursor-pointer transition">
+          <div
+            className="p-4 border border-border rounded-lg hover:bg-muted cursor-pointer transition"
+            onClick={() => router.push("/dashboard/vaccinations/record")}
+          >
             <h4 className="font-medium text-foreground">{t("vaccinations.recordVaccination", language)}</h4>
             <p className="text-sm text-muted-foreground mt-1">
               {t("vaccinations.startRecordingVaccinations", language)}
             </p>
           </div>
-          <div className="p-4 border border-border rounded-lg hover:bg-muted cursor-pointer transition">
+          <div
+            className="p-4 border border-border rounded-lg hover:bg-muted cursor-pointer transition"
+            onClick={() => router.push("/dashboard/inventory-logs")}
+          >
             <h4 className="font-medium text-foreground">{t("inventory.addStock", language)}</h4>
             <p className="text-sm text-muted-foreground mt-1">{t("inventory.subtitle", language)}</p>
           </div>

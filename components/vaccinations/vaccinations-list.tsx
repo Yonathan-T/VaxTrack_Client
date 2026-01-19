@@ -45,13 +45,17 @@ export function VaccinationsList() {
       // Get all children first
       const childrenRes = await getChildrenList()
 
-      if (childrenRes.error) {
+      // Consider empty error objects as non-errors; log only if meaningful
+      const hasMeaningfulError = !!(childrenRes as any)?.error && Object.keys((childrenRes as any).error || {}).length > 0
+      if (hasMeaningfulError) {
         console.error("[VaccinationsList] Error fetching children:", childrenRes.error)
         setVaccinations([])
         return
       }
 
-      const childrenData = (childrenRes.data as any).children || childrenRes.data || []
+      // Normalize response shape: supports {data:{data:[]}}, {data:{children:[]}}, or direct array
+      const responseData = childrenRes.data as any
+      const childrenData = responseData?.data || responseData?.children || responseData || []
       const childrenArray = Array.isArray(childrenData) ? childrenData : []
 
       // Fetch vaccination records for each child
@@ -68,7 +72,9 @@ export function VaccinationsList() {
                 vaccinationRecords.push({
                   id: record.id?.toString() || `${child.id}_${Date.now()}`,
                   childId: child.id,
-                  childName: child.name || childData.name || "Unknown",
+                  childName: (child.first_name && child.last_name)
+                    ? `${child.first_name} ${child.last_name}`
+                    : child.name || childData.name || "Unknown",
                   vaccine: record.vaccine?.name || record.vaccineName || "Unknown",
                   date: record.date_administered || record.dateAdministered || "-",
                   batchNumber: record.batch_number || record.batchNumber || "-",
