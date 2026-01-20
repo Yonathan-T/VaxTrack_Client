@@ -1,7 +1,7 @@
 "use client"
 
 import { Card } from "@/components/ui/card"
-import { Package, TrendingDown, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react"
+import { Package, Hourglass, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react"
 import { useLanguage } from "@/lib/language-context"
 import { t } from "@/lib/translations"
 import { cn } from "@/lib/utils"
@@ -46,6 +46,8 @@ export function InventoryOverview() {
       change: t("inventory.stats.allEPIVaccines", language),
       icon: Package,
       color: "text-primary",
+      bgGradient: "from-blue-500/10 to-blue-600/5",
+      borderColor: "rgb(59 130 246)",
     },
     {
       title: t("inventory.stats.lowStockItems", language),
@@ -53,20 +55,26 @@ export function InventoryOverview() {
       change: t("inventory.stats.requiresRestocking", language),
       icon: AlertTriangle,
       color: "text-destructive",
+      bgGradient: "from-red-500/10 to-red-600/5",
+      borderColor: "rgb(239 68 68)",
     },
     {
       title: t("inventory.stats.expiringoon", language),
       value: stats.expiringSoon.toString(),
       change: t("inventory.stats.withinThirtyDays", language),
-      icon: TrendingDown,
-      color: "text-accent",
+      icon: Hourglass,
+      color: "text-amber-500",
+      bgGradient: "from-amber-500/10 to-amber-600/5",
+      borderColor: "rgb(245 158 11)",
     },
     {
       title: t("inventory.stats.wellStocked", language),
       value: stats.wellStocked.toString(),
       change: t("inventory.stats.adequateSupply", language),
       icon: CheckCircle2,
-      color: "text-secondary",
+      color: "text-green-600",
+      bgGradient: "from-green-500/10 to-green-600/5",
+      borderColor: "rgb(34 197 94)",
     },
   ]
 
@@ -91,15 +99,26 @@ export function InventoryOverview() {
 
   return (
     <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {statsConfig.map((stat) => {
+      {statsConfig.map((stat, index) => {
         const Icon = stat.icon
         return (
-          <Card key={stat.title} className="p-6">
-            <div className="flex items-center justify-between mb-4">
+          <Card
+            key={stat.title}
+            className="group p-6 relative overflow-hidden transition-all duration-500 ease-out hover:shadow-xl hover:shadow-primary/10 hover:scale-[1.02] hover:-translate-y-1 border-l-4"
+            style={{ borderLeftColor: stat.borderColor as any }}
+          >
+            <div
+              className={cn(
+                "absolute inset-0 bg-gradient-to-br transition-opacity duration-700",
+                stat.bgGradient,
+                "opacity-100",
+              )}
+            />
+            <div className="relative z-10 flex items-center justify-between mb-4">
               <h3 className="text-sm font-medium text-muted-foreground">{stat.title}</h3>
-              <Icon className={cn("h-5 w-5", stat.color)} />
+              <Icon className={cn("h-5 w-5 opacity-70 drop-shadow-sm transition-transform duration-500", stat.color, "group-hover:scale-110 group-hover:rotate-12")} />
             </div>
-            <div className="space-y-1">
+            <div className="relative z-10 space-y-1">
               <p className="text-3xl font-bold text-foreground">{stat.value}</p>
               <p className="text-xs text-muted-foreground">{stat.change}</p>
             </div>

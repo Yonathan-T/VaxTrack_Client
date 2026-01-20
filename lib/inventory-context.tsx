@@ -113,36 +113,49 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     try {
       const [inventoryRes, alertsRes] = await Promise.all([getInventory(), getStockAlerts()])
 
-      if (inventoryRes.error) {
+      // Determine if we have a meaningful error (avoid logging empty {})
+      const err = (inventoryRes as any)?.error
+      const hasMeaningfulError = !!err && (
+        typeof err === "string" ||
+        (typeof err === "object" && (
+          ("message" in err && !!err.message) ||
+          ("status" in err && typeof err.status === "number") ||
+          Object.keys(err).length > 0
+        ))
+      )
+
+      if (hasMeaningfulError) {
         // Handle different error formats
         let errorMessage = "Failed to load inventory"
-        
-        if (typeof inventoryRes.error === "string") {
-          errorMessage = inventoryRes.error
-        } else if (inventoryRes.error && typeof inventoryRes.error === "object") {
-          // Check if error has a message property
-          if ("message" in inventoryRes.error && inventoryRes.error.message) {
-            errorMessage = inventoryRes.error.message
-          } else if ("status" in inventoryRes.error) {
-            // If we have a status code, provide more context
-            const status = inventoryRes.error.status
-            errorMessage = status === 401 || status === 403 
+
+        if (typeof err === "string") {
+          errorMessage = err
+        } else if (err && typeof err === "object") {
+          if ("message" in err && err.message) {
+            errorMessage = err.message as string
+          } else if ("status" in err) {
+            const status = (err as any).status as number
+            errorMessage = status === 401 || status === 403
               ? "Unauthorized access. Please log in again."
               : status === 404
               ? "Inventory endpoint not found"
               : status >= 500
               ? "Server error. Please try again later."
               : `Failed to load inventory (${status})`
-          } else if (Object.keys(inventoryRes.error).length > 0) {
-            // If error object has other properties, stringify it
-            errorMessage = JSON.stringify(inventoryRes.error)
+          } else {
+            try {
+              errorMessage = JSON.stringify(err)
+            } catch {
+              errorMessage = "Failed to load inventory"
+            }
           }
         }
-        
+
+        // Log only meaningful error details
         console.error("[InventoryContext] Error fetching inventory:", {
-          error: inventoryRes.error,
           message: errorMessage,
-          status: inventoryRes.status,
+          status: (err as any)?.status,
+          code: (err as any)?.code,
         })
         setError(errorMessage)
         setStock([])
@@ -185,6 +198,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
 
         setStock(transformedStock)
       } else {
+        // No data and no meaningful error: treat as empty inventory without noisy logs
         setStock([])
       }
     } catch (err) {

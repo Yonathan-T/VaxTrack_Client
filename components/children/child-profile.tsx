@@ -82,9 +82,22 @@ export function ChildProfile({ childId }: { childId: string }) {
         day: "numeric",
       })
     : "-"
-  const age = child.date_of_birth
-    ? Math.floor((new Date().getTime() - new Date(child.date_of_birth).getTime()) / (1000 * 60 * 60 * 24 * 365.25))
-    : null
+  const formatAge = (dobStr?: string) => {
+    if (!dobStr) return null
+    const birth = new Date(dobStr)
+    const now = new Date()
+    let years = now.getFullYear() - birth.getFullYear()
+    let months = now.getMonth() - birth.getMonth()
+    const days = now.getDate() - birth.getDate()
+    if (days < 0) months -= 1
+    if (months < 0) {
+      years -= 1
+      months += 12
+    }
+    if (years <= 0) return `${Math.max(0, months)} months old`
+    return `${years} ${years === 1 ? "year" : "years"} old`
+  }
+  const ageText = formatAge(child.date_of_birth || (child as any)?.dateOfBirth)
 
   return (
     <>
@@ -101,11 +114,7 @@ export function ChildProfile({ childId }: { childId: string }) {
                   <Calendar className="h-4 w-4" />
                   {dob}
                 </div>
-                {age !== null && (
-                  <div>
-                    {age} {age === 1 ? "year" : "years"} old
-                  </div>
-                )}
+                {ageText && <div>{ageText}</div>}
               </div>
             </div>
           </div>

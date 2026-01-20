@@ -12,7 +12,7 @@ export default function AddStockPage() {
   const { language } = useLanguage()
 
   return (
-    <RoleProtected allowedRoles={["healthcare_worker", "admin"]}>
+    <RoleProtected allowedRoles={["admin"]}>
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center gap-4">
           <Link href="/dashboard/inventory">

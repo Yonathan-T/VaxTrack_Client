@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, Loader2 } from 'lucide-react'
 import { useLanguage } from "@/lib/language-context"
@@ -23,21 +22,18 @@ export function RegisterChildForm() {
 
   const [formData, setFormData] = useState({
     firstName: "",
-    middleName: "",
     lastName: "",
     dateOfBirth: "",
     gender: "",
     placeOfBirth: "",
     birthWeight: "",
-    guardianFirstName: "",
-    guardianLastName: "",
     relationship: "",
     guardianPhone: "",
     guardianEmail: "",
+    address: "",
     kebele: "",
     woreda: "",
     houseNumber: "",
-    notes: "",
   })
 
   const handleSubmit = async (e: FormEvent) => {
@@ -50,10 +46,9 @@ export function RegisterChildForm() {
       !formData.lastName ||
       !formData.dateOfBirth ||
       !formData.gender ||
-      !formData.guardianFirstName ||
-      !formData.guardianLastName ||
       !formData.relationship ||
-      !formData.guardianPhone ||
+      !formData.guardianEmail ||
+      !formData.address ||
       !formData.kebele ||
       !formData.woreda
     ) {
@@ -63,14 +58,46 @@ export function RegisterChildForm() {
     }
 
     try {
-      const response = await registerNewChild({
-        name: `${formData.firstName} ${formData.middleName ? formData.middleName + " " : ""}${formData.lastName}`.trim(),
-        dateOfBirth: formData.dateOfBirth,
-        gender: formData.gender,
-        guardianName: `${formData.guardianFirstName} ${formData.guardianLastName}`.trim(),
-        guardianPhone: formData.guardianPhone,
-        guardianEmail: formData.guardianEmail,
-      })
+      const rel = (formData.relationship || "").trim()
+      const relationshipValue =
+        rel === "Mother" ? "mother" :
+        rel === "Father" ? "father" :
+        rel === "Grandmother" ? "Grandmother" :
+        rel === "Grandfather" ? "Grandfather" :
+        "other"
+      const payload: any = {
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        date_of_birth: formData.dateOfBirth,
+        sex: (formData.gender || "").toLowerCase().trim(),
+        relationship_to_child: relationshipValue,
+        address: formData.address,
+        kebele: formData.kebele,
+        woreda: formData.woreda,
+        parent_email: formData.guardianEmail,
+      }
+
+      if (formData.placeOfBirth) payload.place_of_birth = formData.placeOfBirth
+      if (formData.houseNumber) payload.house_number = formData.houseNumber
+      if (formData.guardianPhone) payload.parent_phone = formData.guardianPhone
+
+      // Debug: log payload being sent
+      try {
+        console.groupCollapsed("[RegisterChildForm] registerNewChild payload")
+        console.log(JSON.stringify(payload, null, 2))
+        console.groupEnd()
+      } catch {}
+
+      const response = await registerNewChild(payload)
+
+      // Debug: log raw API response envelope
+      try {
+        console.groupCollapsed("[RegisterChildForm] registerNewChild response")
+        console.log("status:", response.status)
+        console.log("data:", response.data)
+        console.log("error:", response.error)
+        console.groupEnd()
+      } catch {}
 
       if (response.error) {
         setError(response.error.message || t("form.registrationFailed", language))
@@ -85,9 +112,12 @@ export function RegisterChildForm() {
 
       setError("")
       router.push("/dashboard/children")
-    } catch (err) {
-      setError(t("form.registrationFailed", language))
-      console.error("[RegisterChildForm] Registration error:", err)
+    } catch (err: any) {
+      // Debug: log caught error thoroughly
+      // eslint-disable-next-line no-console
+      console.error("[RegisterChildForm] Registration error:", err?.response || err)
+      const serverMessage = err?.response?.data?.message || err?.message
+      setError(serverMessage || t("form.registrationFailed", language))
       setLoading(false)
     }
   }
@@ -112,15 +142,6 @@ export function RegisterChildForm() {
               value={formData.firstName}
               onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
               required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="middleName">Middle Name</Label>
-            <Input
-              id="middleName"
-              value={formData.middleName}
-              onChange={(e) => setFormData({ ...formData, middleName: e.target.value })}
             />
           </div>
 
@@ -185,28 +206,6 @@ export function RegisterChildForm() {
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-foreground">Guardian Information</h3>
 
-        <div className="grid md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="guardianFirstName">Guardian First Name *</Label>
-            <Input
-              id="guardianFirstName"
-              value={formData.guardianFirstName}
-              onChange={(e) => setFormData({ ...formData, guardianFirstName: e.target.value })}
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="guardianLastName">Guardian Last Name *</Label>
-            <Input
-              id="guardianLastName"
-              value={formData.guardianLastName}
-              onChange={(e) => setFormData({ ...formData, guardianLastName: e.target.value })}
-              required
-            />
-          </div>
-        </div>
-
         <div className="grid md:grid-cols-3 gap-4">
           <div className="space-y-2">
             <Label htmlFor="relationship">Relationship to Child *</Label>
@@ -218,36 +217,37 @@ export function RegisterChildForm() {
                 <SelectValue placeholder="Select relationship" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="mother">Mother</SelectItem>
-                <SelectItem value="father">Father</SelectItem>
-                <SelectItem value="grandmother">Grandmother</SelectItem>
-                <SelectItem value="grandfather">Grandfather</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
+                <SelectItem value="Mother">Mother</SelectItem>
+                <SelectItem value="Father">Father</SelectItem>
+                <SelectItem value="Grandmother">Grandmother</SelectItem>
+                <SelectItem value="Grandfather">Grandfather</SelectItem>
+                <SelectItem value="Brother">Brother</SelectItem>
+                <SelectItem value="Guardian">Guardian</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="guardianPhone">Guardian Phone Number *</Label>
+            <Label htmlFor="guardianPhone">Guardian Phone Number (Optional)</Label>
             <Input
               id="guardianPhone"
               type="tel"
               placeholder="+251911234567"
               value={formData.guardianPhone}
               onChange={(e) => setFormData({ ...formData, guardianPhone: e.target.value })}
-              required
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="guardianEmail">
-              Guardian Email (Optional)
+              Guardian Email *
             </Label>
             <Input
               id="guardianEmail"
               type="email"
               value={formData.guardianEmail}
               onChange={(e) => setFormData({ ...formData, guardianEmail: e.target.value })}
+              required
             />
           </div>
         </div>
@@ -278,6 +278,16 @@ export function RegisterChildForm() {
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="address">Address *</Label>
+            <Input
+              id="address"
+              value={formData.address}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="houseNumber">House Number</Label>
             <Input
               id="houseNumber"
@@ -285,21 +295,6 @@ export function RegisterChildForm() {
               onChange={(e) => setFormData({ ...formData, houseNumber: e.target.value })}
             />
           </div>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-foreground">Additional Information</h3>
-
-        <div className="space-y-2">
-          <Label htmlFor="notes">Notes</Label>
-          <Textarea
-            id="notes"
-            placeholder="Any additional notes about the child..."
-            value={formData.notes}
-            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-            rows={4}
-          />
         </div>
       </div>
 

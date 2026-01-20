@@ -159,12 +159,18 @@ export async function getChildProfile(childId: string) {
 }
 
 export async function registerNewChild(data: {
-  name: string;
-  dateOfBirth: string;
-  gender: string;
-  guardianName: string;
-  guardianPhone: string;
-  guardianEmail: string;
+  first_name: string;
+  last_name: string;
+  date_of_birth: string;
+  place_of_birth?: string;
+  sex: string;
+  relationship_to_child: string;
+  address: string;
+  kebele: string;
+  woreda: string;
+  house_number?: string;
+  parent_phone?: string;
+  parent_email: string;
 }) {
   return apiClient.post("/v1/children", data);
 }
@@ -237,9 +243,11 @@ export async function getFacilityCapacity(
 export async function administerVaccine(
   vaccinationRecordId: string,
   data: {
-    vaccineId: string;
-    batchNumber: string;
-    dateAdministered: string;
+    // Backend expects snake_case keys
+    date_administered: string;
+    batch_number?: string;
+    dose_ml?: number;
+    dose_number?: number;
   }
 ) {
   return apiClient.post(

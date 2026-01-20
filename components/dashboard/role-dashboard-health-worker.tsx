@@ -26,6 +26,7 @@ export function HealthWorkerDashboard({ language: initialLanguage }: RoleDashboa
     upcomingAppointments: 0,
     overdueVaccinations: 0,
     pendingToday: 0,
+    childrenThisWeek: 0,
   })
   const [isLoading, setIsLoading] = useState(true)
 
@@ -40,14 +41,27 @@ export function HealthWorkerDashboard({ language: initialLanguage }: RoleDashboa
         ])
 
         let childrenCount = 0
+        let childrenThisWeek = 0
         let appointmentsCount = 0
         let alertsCount = 0
         let vaccinationsToday = 0
         let pendingToday = 0
 
         if (childrenRes.data) {
-          const childrenData = (childrenRes.data as any).children || childrenRes.data
-          childrenCount = Array.isArray(childrenData) ? childrenData.length : 0
+          const childrenData = (childrenRes.data as any).children || (childrenRes.data as any).data || childrenRes.data
+          const childrenArray = Array.isArray(childrenData) ? childrenData : []
+          childrenCount = childrenArray.length
+
+          // Calculate registrations in the last 7 days
+          const now = new Date()
+          const sevenDaysAgo = new Date(now)
+          sevenDaysAgo.setDate(now.getDate() - 7)
+          childrenThisWeek = childrenArray.filter((c: any) => {
+            const created = (c as any).created_at || (c as any).createdAt
+            if (!created) return false
+            const createdDate = new Date(created)
+            return !isNaN(createdDate.getTime()) && createdDate >= sevenDaysAgo && createdDate <= now
+          }).length
         }
 
         if (appointmentsRes.data) {
@@ -80,6 +94,7 @@ export function HealthWorkerDashboard({ language: initialLanguage }: RoleDashboa
           upcomingAppointments: appointmentsCount,
           overdueVaccinations: alertsCount,
           pendingToday,
+          childrenThisWeek,
         })
       } catch (error) {
         console.error("[v0] Healthcare worker stats fetch error:", error)
@@ -109,7 +124,7 @@ export function HealthWorkerDashboard({ language: initialLanguage }: RoleDashboa
           {
             title: t("children.title", language),
             value: stats.childrenRegistered,
-            change: `+8 ${t("dashboard.thisWeek", language)}`,
+            change: `+${stats.childrenThisWeek} ${t("dashboard.thisWeek", language)}`,
             icon: Users,
             color: "text-primary",
             bgGradient: "from-blue-500/10 to-blue-600/5",

@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
@@ -78,7 +78,13 @@ export function VaccinationsList() {
                   vaccine: record.vaccine?.name || record.vaccineName || "Unknown",
                   date: record.date_administered || record.dateAdministered || "-",
                   batchNumber: record.batch_number || record.batchNumber || "-",
-                  administeredBy: record.administered_by || record.administeredBy || "-",
+                  administeredBy:
+                    record.administer?.name ||
+                    record.user?.name ||
+                    record.administered_by_name ||
+                    record.administered_by ||
+                    record.administeredBy ||
+                    "-",
                   nextDue: record.next_due_date || record.nextDueDate || "-",
                   status: record.status === "completed" ? "completed" : record.status === "overdue" ? "overdue" : "scheduled",
                 })
@@ -237,7 +243,14 @@ export function VaccinationsList() {
                               : "destructive"
                         }
                       >
-                        {t(`vaccinations.${vaccination.status}`, language)}
+                        {t(
+  vaccination.status === "overdue"
+    ? "children.overdue"
+    : vaccination.status === "completed"
+      ? "vaccinations.completed"
+      : "vaccinations.scheduled",
+  language
+)}
                       </Badge>
                     </td>
                     <td className="px-3 py-2">
@@ -258,3 +271,4 @@ export function VaccinationsList() {
     </div>
   )
 }
+

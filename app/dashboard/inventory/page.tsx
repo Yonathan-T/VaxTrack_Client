@@ -12,7 +12,8 @@ import Link from "next/link"
 import { useLanguage } from "@/lib/language-context"
 import { t } from "@/lib/translations"
 import { useToast } from "@/hooks/use-toast"
-import { vaccineStock } from "@/data/vaccine-stock"
+// Use live inventory from context instead of mock data
+import { useInventory } from "@/lib/inventory-context"
 import { RoleProtected } from "@/lib/role-protected"
 import { useUser } from "@/lib/user-context"
 import { Suspense } from "react"
@@ -65,28 +66,30 @@ export default function InventoryPage() {
   const { language } = useLanguage()
   const { toast } = useToast()
   const { user } = useUser()
+  const { stock } = useInventory()
 
   const handleExport = () => {
     try {
       const today = new Date().toISOString().split("T")[0]
       const currentTime = new Date().toLocaleTimeString()
 
-      const totalVaccines = vaccineStock.length
-      const adequateStock = vaccineStock.filter((v) => v.status === "adequate").length
-      const lowStock = vaccineStock.filter((v) => v.status === "low").length
-      const criticalStock = vaccineStock.filter((v) => v.status === "critical").length
-      const totalQuantity = vaccineStock.reduce((sum, v) => sum + v.quantity, 0)
-      const totalMinStock = vaccineStock.reduce((sum, v) => sum + v.minStock, 0)
+      const live = Array.isArray(stock) ? stock : []
+      const totalVaccines = live.length
+      const adequateStock = live.filter((v) => v.status === "adequate").length
+      const lowStock = live.filter((v) => v.status === "low").length
+      const criticalStock = live.filter((v) => v.status === "critical").length
+      const totalQuantity = live.reduce((sum, v) => sum + (v.quantity || 0), 0)
+      const totalMinStock = live.reduce((sum, v) => sum + (v.minStock || 0), 0)
 
       // Check for expiring soon vaccines
-      const expiringVaccines = vaccineStock.filter((v) => {
+      const expiringVaccines = live.filter((v) => {
         const today = new Date()
         const expiry = new Date(v.expiryDate)
         const daysUntilExpiry = Math.floor((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
         return daysUntilExpiry <= 30 && daysUntilExpiry > 0
       })
 
-      const expiredVaccines = vaccineStock.filter((v) => {
+      const expiredVaccines = live.filter((v) => {
         const today = new Date()
         const expiry = new Date(v.expiryDate)
         return expiry < today
@@ -162,7 +165,7 @@ export default function InventoryPage() {
       ])
 
       // Detailed Inventory Data Rows
-      vaccineStock.forEach((vaccine) => {
+      live.forEach((vaccine) => {
         const stockPercentage = Math.min((vaccine.quantity / vaccine.minStock) * 100, 100)
         const today = new Date()
         const expiry = new Date(vaccine.expiryDate)
@@ -193,7 +196,7 @@ export default function InventoryPage() {
           t("inventory.report.minimumStock", language),
           t("inventory.report.manufacturer", language),
         ])
-        vaccineStock
+        live
           .filter((v) => v.status === "critical")
           .forEach((vaccine) => {
             reportData.push([
@@ -269,7 +272,7 @@ export default function InventoryPage() {
     }
   }
 
-  const canAddStock = user?.role === "healthcare_worker" || user?.role === "admin"
+  const canAddStock = user?.role === "health_official" || user?.role === "admin"
 
   return (
     <RoleProtected allowedRoles={["admin", "healthcare_worker"]}>

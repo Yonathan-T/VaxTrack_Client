@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Plus, CheckCircle2, AlertCircle, Calendar, Clock, Loader2 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useLanguage } from "@/lib/language-context"
+import { useUser } from "@/lib/user-context"
 import { t } from "@/lib/translations"
 import { getChildProfile, type ChildProfile } from "@/lib/healthcare-worker-api"
 import { RecordVaccinationModal } from "./record-vaccination-modal"
@@ -15,12 +16,30 @@ import { useToast } from "@/hooks/use-toast"
 export function VaccinationHistory({ childId }: { childId: string }) {
   const { language } = useLanguage()
   const { toast } = useToast()
+  const { user } = useUser()
   const [isRecordOpen, setIsRecordOpen] = useState(false)
   const [isScheduleOpen, setIsScheduleOpen] = useState(false)
   const [selectedVaccine, setSelectedVaccine] = useState<any>(null)
   const [childData, setChildData] = useState<ChildProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [selectedVaccinationRecord, setSelectedVaccinationRecord] = useState<any>(null)
+
+  // Helper: precise age formatting (months if < 1 year, otherwise years)
+  const formatAge = (dob?: string) => {
+    if (!dob) return ""
+    const birth = new Date(dob)
+    const now = new Date()
+    let years = now.getFullYear() - birth.getFullYear()
+    let months = now.getMonth() - birth.getMonth()
+    const days = now.getDate() - birth.getDate()
+    if (days < 0) months -= 1
+    if (months < 0) {
+      years -= 1
+      months += 12
+    }
+    if (years <= 0) return `${Math.max(0, months)} months old`
+    return `${years} year${years > 1 ? "s" : ""} old`
+  }
 
   useEffect(() => {
     const fetchChildData = async () => {
@@ -56,11 +75,11 @@ export function VaccinationHistory({ childId }: { childId: string }) {
   }, [childId, toast])
 
   const completedVaccinations = childData?.vaccination_records?.filter(
-    (record) => record.status === "completed" && record.date_administered,
+    (record: any) => (record as any).status === "completed" && (((record as any).date_administered) || ((record as any).dateAdministered)),
   ) || []
 
   const dueVaccinations = childData?.vaccination_records?.filter(
-    (record) => record.status === "scheduled" || record.status === "overdue",
+    (record: any) => (record as any).status === "scheduled" || (record as any).status === "overdue",
   ) || []
 
   const handleRecordVaccination = (vaccinationRecord: any) => {
@@ -101,6 +120,13 @@ export function VaccinationHistory({ childId }: { childId: string }) {
               <p className="text-sm text-muted-foreground mt-1">
                 Completed vaccinations for this child
               </p>
+              {(childData?.date_of_birth || (childData as any)?.dateOfBirth) && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  {(childData?.first_name || childData?.last_name) ? `${childData?.first_name ?? ""} ${childData?.last_name ?? ""}`.trim() : (childData as any)?.name || ""}
+                  {" \u00B7 "}
+                  {formatAge((childData as any)?.date_of_birth || (childData as any)?.dateOfBirth)}
+                </p>
+              )}
             </div>
             <Button size="sm" onClick={() => setIsRecordOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
@@ -121,7 +147,7 @@ export function VaccinationHistory({ childId }: { childId: string }) {
             </div>
           ) : (
             <div className="space-y-4">
-              {completedVaccinations.map((record) => (
+              {completedVaccinations.map((record: any) => (
                 <div
                   key={record.id}
                   className="border border-border rounded-lg p-5 hover:bg-muted/30 transition-colors"
@@ -149,8 +175,8 @@ export function VaccinationHistory({ childId }: { childId: string }) {
                     <div>
                       <p className="text-muted-foreground mb-1">{t("vaccinations.dateAdministered", language) || "Date Administered"}</p>
                       <p className="font-medium text-foreground">
-                        {record.date_administered
-                          ? new Date(record.date_administered).toLocaleDateString("en-US", {
+                        {((record as any).date_administered || (record as any).dateAdministered)
+                          ? new Date(((record as any).date_administered || (record as any).dateAdministered)).toLocaleDateString("en-US", {
                               year: "numeric",
                               month: "short",
                               day: "numeric",
@@ -160,18 +186,27 @@ export function VaccinationHistory({ childId }: { childId: string }) {
                     </div>
                     <div>
                       <p className="text-muted-foreground mb-1">{t("vaccinations.batchNumber", language) || "Batch Number"}</p>
-                      <p className="font-medium text-foreground font-mono">{record.batch_number || "-"}</p>
+                      <p className="font-medium text-foreground font-mono">{(record as any).batch_number || (record as any).batchNumber || "-"}</p>
                     </div>
-                    {record.administered_by && (
+                    {(record.administer?.name || record.user?.name || record.administered_by_name || record.administered_by || record.administeredBy) && (
                       <div>
                         <p className="text-muted-foreground mb-1">{t("vaccinations.administeredBy", language) || "Administered By"}</p>
-                        <p className="font-medium text-foreground">{record.administered_by}</p>
+                        <p className="font-medium text-foreground">
+                          {record.administer?.name ||
+                            record.user?.name ||
+                            (record as any).administered_by_name ||
+                            // If backend returns only an ID and it matches current user, show current user's name
+                            ((String((record as any).administered_by ?? (record as any).administeredBy) === String(user?.id))
+                              ? (user?.name || user?.email || String((record as any).administered_by || (record as any).administeredBy))
+                              : ((record as any).administered_by || (record as any).administeredBy)) ||
+                            "-"}
+                        </p>
                       </div>
                     )}
-                    {record.dose_number && (
+                    {(record as any).dose_number && (
                       <div>
                         <p className="text-muted-foreground mb-1">Dose Number</p>
-                        <p className="font-medium text-foreground">Dose {record.dose_number}</p>
+                        <p className="font-medium text-foreground">Dose {(record as any).dose_number}</p>
                       </div>
                     )}
                   </div>
@@ -201,15 +236,15 @@ export function VaccinationHistory({ childId }: { childId: string }) {
             </div>
           ) : (
             <div className="space-y-3">
-              {dueVaccinations.map((record) => {
-                const scheduledDate = record.scheduled_date
-                  ? new Date(record.scheduled_date).toLocaleDateString("en-US", {
+              {dueVaccinations.map((record: any) => {
+                const scheduledDate = (record as any).scheduled_date || (record as any).scheduledDate
+                  ? new Date((record as any).scheduled_date || (record as any).scheduledDate).toLocaleDateString("en-US", {
                       year: "numeric",
                       month: "long",
                       day: "numeric",
                     })
                   : "-"
-                const isOverdue = record.status === "overdue"
+                const isOverdue = (record as any).status === "overdue"
 
                 return (
                   <div

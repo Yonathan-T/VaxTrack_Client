@@ -46,6 +46,9 @@ export const translations = {
     // Footer
     "footer.copyright": "© 2025 Vaccination Tracking System - Addis Ketema Sub-city Health Office",
 
+    // Common
+    "common.refresh": "Refresh",
+
     // Login
     "login.title": "Protecting Children Through Better Vaccination Tracking",
     "login.description":
@@ -541,6 +544,9 @@ export const translations = {
 
     // Footer
     "footer.copyright": "© 2025 ክትባት ክትትል ስርዓት - አዲስ ከተማ ዩንደርሪጎ ጤና ቢሮ",
+
+    // Common
+    "common.refresh": "እንደገና ጫን",
 
     // Login
     "login.title": "ለብልህ ክትባት ክትትል ልጆችን ጠብቅ",

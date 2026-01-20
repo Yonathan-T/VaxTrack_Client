@@ -74,12 +74,47 @@ export function ChildrenList() {
     fetchChildren()
   }
 
-  const getVaccinationStatus = (dateOfBirth: string) => {
+  // Prefer computing status from actual vaccination records when available; otherwise fall back.
+  const getVaccinationStatus = (child: any) => {
     try {
+      const records: any[] = Array.isArray((child as any).vaccination_records)
+        ? (child as any).vaccination_records
+        : []
+
+      if (records.length > 0) {
+        const today = new Date()
+        const hasOverdue = records.some((v: any) => {
+          const status = (v as any).status
+          if (status === "overdue") return true
+          if (status === "pending" || status === "scheduled") {
+            const due = (v as any).scheduled_date || (v as any).scheduledDate
+            const dueDate = due ? new Date(due) : null
+            return !!dueDate && !isNaN(dueDate.getTime()) && dueDate < today
+          }
+          return false
+        })
+        if (hasOverdue) return "overdue"
+
+        const hasDue = records.some((v: any) => {
+          const status = (v as any).status
+          if (status === "pending" || status === "scheduled") {
+            const due = (v as any).scheduled_date || (v as any).scheduledDate
+            const dueDate = due ? new Date(due) : null
+            return !!dueDate && !isNaN(dueDate.getTime()) && dueDate >= today
+          }
+          return false
+        })
+        if (hasDue) return "due"
+
+        return "up-to-date"
+      }
+
+      // Fallback heuristic if records are not present in the list response
+      const dateOfBirth: string = (child as any).date_of_birth || (child as any).dateOfBirth
+      if (!dateOfBirth) return "unknown"
       const birthDate = new Date(dateOfBirth)
       const today = new Date()
       const ageInMonths = (today.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24 * 30)
-
       if (ageInMonths < 2) return "up-to-date"
       if (ageInMonths < 6) return "due"
       return "overdue"
@@ -185,7 +220,7 @@ export function ChildrenList() {
                 </tr>
               ) : (
                 sortedChildren.map((child) => {
-                  const status = getVaccinationStatus(child.date_of_birth)
+                  const status = getVaccinationStatus(child as any)
                   const parent = child.parent
                   const fullName = `${child.first_name} ${child.last_name}`.trim()
                   const dob = child.date_of_birth

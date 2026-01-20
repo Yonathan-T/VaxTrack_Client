@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import type React from "react"
 
@@ -12,9 +12,11 @@ import { t } from "@/lib/translations"
 import { useState, useEffect } from "react"
 import { administerVaccine, getChildProfile } from "@/lib/healthcare-worker-api"
 import { useToast } from "@/hooks/use-toast"
+import { useInventory } from "@/lib/inventory-context"
 import { useUser } from "@/lib/user-context"
 import { Card } from "@/components/ui/card"
-import { Calendar, Syringe, Building2 } from "lucide-react"
+import { Calendar, Syringe, Building2, AlertCircle } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface RecordVaccinationModalProps {
   isOpen: boolean
@@ -32,6 +34,7 @@ export function RecordVaccinationModal({
   const { language } = useLanguage()
   const { toast } = useToast()
   const { user } = useUser()
+  const { stock, isLoading: isInventoryLoading } = useInventory()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [childData, setChildData] = useState<any>(null)
   const [formData, setFormData] = useState({
@@ -39,7 +42,20 @@ export function RecordVaccinationModal({
     vaccineName: "",
     dateAdministered: "",
     batchNumber: "",
+    doseMl: "",
+    doseNumber: "",
   })
+  const [isBatchPrefilled, setIsBatchPrefilled] = useState(false)
+
+  // Compute available stock for the selected vaccine at this facility (by vaccine name)
+  const availableQuantity = (() => {
+    const name = (formData.vaccineName || "").trim().toLowerCase()
+    if (!name) return 0
+    return stock
+      .filter((s) => (s.name || "").trim().toLowerCase() === name)
+      .reduce((sum, s) => sum + (s.quantity || 0), 0)
+  })()
+  const noStock = !isInventoryLoading && Number(availableQuantity) <= 0
 
   useEffect(() => {
     if (isOpen && childId) {
@@ -56,12 +72,21 @@ export function RecordVaccinationModal({
   useEffect(() => {
     if (vaccinationRecord && isOpen) {
       // Pre-fill form with vaccination record data
+      // Prefer batch_number, then batchNumber, then nested lot if any
+      const prefillBatchOpen =
+        (vaccinationRecord as any)?.batch_number ||
+        (vaccinationRecord as any)?.batchNumber ||
+        (vaccinationRecord as any)?.lot?.batch_number ||
+        ""
       setFormData({
         vaccineId: vaccinationRecord.vaccine_id?.toString() || vaccinationRecord.vaccine?.id?.toString() || "",
         vaccineName: vaccinationRecord.vaccine?.name || "",
         dateAdministered: new Date().toISOString().split("T")[0], // Today's date
-        batchNumber: "",
+        batchNumber: prefillBatchOpen,
+        doseMl: "",
+        doseNumber: "",
       })
+      setIsBatchPrefilled(!!prefillBatchOpen)
     } else if (isOpen) {
       // Reset form when opening without a specific record
       setFormData({
@@ -69,17 +94,29 @@ export function RecordVaccinationModal({
         vaccineName: "",
         dateAdministered: new Date().toISOString().split("T")[0],
         batchNumber: "",
+        doseMl: "",
+        doseNumber: "",
       })
+      setIsBatchPrefilled(false)
     }
   }, [vaccinationRecord, isOpen])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.vaccineId || !formData.dateAdministered || !formData.batchNumber) {
+    if (!formData.vaccineId || !formData.dateAdministered || !formData.doseMl) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields",
+        description: "Please fill in all required fields (including dose in mL)",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (noStock) {
+      toast({
+        title: "No Stock",
+        description: "This facility has no available stock for the selected vaccine. Please receive stock before administering.",
         variant: "destructive",
       })
       return
@@ -109,16 +146,28 @@ export function RecordVaccinationModal({
         return
       }
 
-      const response = await administerVaccine(vaccinationRecordId.toString(), {
-        vaccineId: formData.vaccineId,
-        batchNumber: formData.batchNumber,
-        dateAdministered: formData.dateAdministered,
-      })
+      const payload: any = {
+        // Backend expects snake_case
+        date_administered: formData.dateAdministered,
+      }
+      if (formData.batchNumber) payload.batch_number = formData.batchNumber
+      const doseMlNum = parseFloat(formData.doseMl)
+      if (!Number.isNaN(doseMlNum) && doseMlNum > 0) payload.dose_ml = doseMlNum
+      const doseNum = parseInt(formData.doseNumber, 10)
+      if (!Number.isNaN(doseNum) && doseNum > 0) payload.dose_number = doseNum
+
+      // Debug log the outgoing payload for 422 troubleshooting
+      console.groupCollapsed("[RecordVaccinationModal] administerVaccine payload")
+      console.log(JSON.stringify(payload, null, 2))
+      console.groupEnd()
+
+      const response = await administerVaccine(vaccinationRecordId.toString(), payload)
 
       if (response.error) {
+        console.error("[RecordVaccinationModal] administerVaccine error response:", response)
         toast({
           title: "Error",
-          description: response.error.message || "Failed to record vaccination",
+          description: (response as any).message || (response as any).error?.message || "Failed to record vaccination",
           variant: "destructive",
         })
         setIsSubmitting(false)
@@ -157,7 +206,7 @@ export function RecordVaccinationModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <DialogHeader>
           <DialogTitle className="text-2xl">Record Vaccination</DialogTitle>
           <DialogDescription>
@@ -183,6 +232,17 @@ export function RecordVaccinationModal({
           </Card>
         )}
 
+        {formData.vaccineName && noStock && (
+          <div className="mb-4">
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Inventory is empty for {formData.vaccineName}. Please receive stock before administering.
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -201,28 +261,32 @@ export function RecordVaccinationModal({
                   value={formData.vaccineId}
                   onValueChange={(value) => {
                     const selected = availableVaccines.find((v: { id: string; name: string; code?: string }) => v.id === value)
+                    // Try to find the full record to read batch number if present
+                    const fullRecord = childData?.vaccination_records?.find((r: any) => (r.vaccine_id?.toString() || r.vaccine?.id?.toString()) === value)
+                    const prefillBatch =
+                      (fullRecord as any)?.batch_number ||
+                      (fullRecord as any)?.batchNumber ||
+                      (fullRecord as any)?.lot?.batch_number ||
+                      ""
                     setFormData({
                       ...formData,
                       vaccineId: value,
                       vaccineName: selected?.name || "",
+                      batchNumber: prefillBatch,
                     })
+                    setIsBatchPrefilled(!!prefillBatch)
                   }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select a vaccine" />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableVaccines.length > 0 ? (
+                    {availableVaccines.length > 0 &&
                       availableVaccines.map((vaccine: { id: string; name: string; code?: string }) => (
                         <SelectItem key={vaccine.id} value={vaccine.id}>
                           {vaccine.name} {vaccine.code && `(${vaccine.code})`}
                         </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="" disabled>
-                        No vaccines available
-                      </SelectItem>
-                    )}
+                      ))}
                   </SelectContent>
                 </Select>
               )}
@@ -249,22 +313,55 @@ export function RecordVaccinationModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="batchNumber">
-              Batch Number *
-            </Label>
+            <Label htmlFor="batchNumber">Batch Number</Label>
             <Input
               id="batchNumber"
               placeholder="e.g., PENTA-2024-089"
               value={formData.batchNumber}
-              onChange={(e) => setFormData({ ...formData, batchNumber: e.target.value.toUpperCase() })}
-              required
+              onChange={(e) => {
+                setIsBatchPrefilled(false)
+                setFormData({ ...formData, batchNumber: e.target.value.toUpperCase() })
+              }}
+              disabled={isBatchPrefilled}
             />
             <p className="text-xs text-muted-foreground">
               Enter the batch number from the vaccine vial
             </p>
           </div>
 
-          <Card className="p-4 bg-muted/30">
+          
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="doseMl">Dose (mL) *</Label>
+              <Input
+                id="doseMl"
+                type="number"
+                step="0.1"
+                min="0"
+                value={formData.doseMl}
+                onChange={(e) => setFormData({ ...formData, doseMl: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="doseNumber">Dose Number</Label>
+              <Select
+                value={formData.doseNumber}
+                onValueChange={(value) => setFormData({ ...formData, doseNumber: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select dose number (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1</SelectItem>
+                  <SelectItem value="2">2</SelectItem>
+                  <SelectItem value="3">3</SelectItem>
+                  <SelectItem value="4">4</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+<Card className="p-4 bg-muted/30">
             <div className="flex items-center gap-3">
               <Building2 className="h-5 w-5 text-muted-foreground" />
               <div className="flex-1">
@@ -291,7 +388,7 @@ export function RecordVaccinationModal({
             <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting || !formData.vaccineId || !formData.batchNumber}>
+            <Button type="submit" disabled={isSubmitting || !formData.vaccineId || !formData.doseMl || noStock}>
               {isSubmitting ? "Recording..." : "Record Vaccination"}
             </Button>
           </div>
@@ -300,3 +397,4 @@ export function RecordVaccinationModal({
     </Dialog>
   )
 }
+
