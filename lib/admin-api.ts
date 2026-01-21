@@ -1,4 +1,5 @@
 import { apiClient } from "./api-client"
+import type { ChildProfile } from "./healthcare-worker-api"
 
 export interface User {
   id: string
@@ -51,8 +52,30 @@ export async function deleteUser(userId: string) {
   return apiClient.delete(`/v1/admin/users/${userId}`)
 }
 
+export async function createUser(data: {
+  email: string
+  name: string
+  role: string
+  phone?: string
+  facility_id?: string | number | null
+}) {
+  return apiClient.post("/v1/admin/users", data)
+}
+
 export async function getFacilities() {
   return apiClient.get<{ facilities: Facility[] }>("/v1/admin/facilities")
+}
+
+export interface AdminSettings {
+  [key: string]: any
+}
+
+export async function getAdminSettings() {
+  return apiClient.get<AdminSettings>("/v1/admin/settings")
+}
+
+export async function updateAdminSettings(payload: Record<string, any>) {
+  return apiClient.put("/v1/admin/settings", payload)
 }
 
 export async function createFacility(data: Omit<Facility, "id">) {
@@ -86,6 +109,45 @@ export async function deleteVaccine(vaccineId: string) {
 export async function getCoverageReport(period?: string) {
   const url = period ? `/v1/reports/coverage?period=${period}` : "/v1/reports/coverage"
   return apiClient.get<CoverageReport>(url)
+}
+
+export interface AdminDbCheck {
+  status: string
+  database: string
+  host: string
+  driver: string
+}
+
+export interface AdminSystemStatus {
+  status?: string
+  issues?: Array<{
+    message?: string
+    severity?: "info" | "warning" | "critical" | string
+    service?: string
+    timestamp?: string
+  }>
+  logs?: any[]
+}
+
+export async function getAdminDbCheck() {
+  return apiClient.get<AdminDbCheck>("/v1/admin/db-check")
+}
+
+export async function getAdminSystemStatus() {
+  return apiClient.get<AdminSystemStatus>("/v1/admin/status")
+}
+
+// Useful for dashboards (admin roles usually have access too).
+export async function getAllChildrenForAdmin(searchQuery?: string) {
+  const url = searchQuery
+    ? `/v1/children?search=${encodeURIComponent(searchQuery)}`
+    : "/v1/children"
+  return apiClient.get<{
+    data: ChildProfile[]
+    current_page: number
+    total: number
+    per_page: number
+  }>(url)
 }
 
 export async function receiveInventory(data: {

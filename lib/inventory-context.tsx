@@ -115,14 +115,15 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
 
       // Determine if we have a meaningful error (avoid logging empty {})
       const err = (inventoryRes as any)?.error
-      const hasMeaningfulError = !!err && (
-        typeof err === "string" ||
-        (typeof err === "object" && (
-          ("message" in err && !!err.message) ||
-          ("status" in err && typeof err.status === "number") ||
-          Object.keys(err).length > 0
-        ))
-      )
+      const hasMeaningfulError = (() => {
+        if (!err) return false
+        if (typeof err === "string") return err.trim().length > 0
+        if (typeof err === "object") {
+          const entries = Object.entries(err as Record<string, unknown>)
+          return entries.some(([_, v]) => v !== undefined && v !== null && `${v}`.trim().length > 0)
+        }
+        return false
+      })()
 
       if (hasMeaningfulError) {
         // Handle different error formats
@@ -152,11 +153,12 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
         }
 
         // Log only meaningful error details
-        console.error("[InventoryContext] Error fetching inventory:", {
-          message: errorMessage,
-          status: (err as any)?.status,
-          code: (err as any)?.code,
-        })
+        // console.error("[InventoryContext] Error fetching inventory:", {
+        //   message: errorMessage,
+        //   status: (err as any)?.status,
+        //   code: (err as any)?.code,
+        //   details: err,
+        // })
         setError(errorMessage)
         setStock([])
         return

@@ -52,6 +52,7 @@ export function DashboardNav() {
       ],
       admin: [
         { title: t("dashboard.nav.children", language), href: "/dashboard/children", icon: Users },
+        { title: "Users", href: "/dashboard/users", icon: Users },
         { title: t("dashboard.nav.vaccinations", language), href: "/dashboard/vaccinations", icon: Syringe },
         { title: t("dashboard.nav.appointments", language), href: "/dashboard/appointments", icon: Calendar },
         { title: t("dashboard.nav.reports", language), href: "/dashboard/reports", icon: BarChart3 },
@@ -65,6 +66,7 @@ export function DashboardNav() {
       ],
       system_administrator: [
         { title: t("dashboard.nav.children", language), href: "/dashboard/children", icon: Users },
+        { title: "Users", href: "/dashboard/users", icon: Users },
         { title: t("dashboard.nav.vaccinations", language), href: "/dashboard/vaccinations", icon: Syringe },
         { title: t("dashboard.nav.appointments", language), href: "/dashboard/appointments", icon: Calendar },
         { title: t("dashboard.nav.reports", language), href: "/dashboard/reports", icon: BarChart3 },
