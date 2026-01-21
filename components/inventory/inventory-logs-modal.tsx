@@ -1,22 +1,28 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { useInventory, type VaccineStock } from "@/lib/inventory-context"
 import { type InventoryLog } from "@/lib/inventory-api"
 import { Loader2, ArrowUpRight, ArrowDownLeft, Info } from "lucide-react"
 import { format } from "date-fns"
 
 interface InventoryLogsModalProps {
-    isOpen: boolean
-    onClose: () => void
+    isOpen?: boolean
+    onOpenChange?: (open: boolean) => void
+    onClose?: () => void
     vaccine: VaccineStock
+    children?: React.ReactNode
 }
 
-export function InventoryLogsModal({ isOpen, onClose, vaccine }: InventoryLogsModalProps) {
+export function InventoryLogsModal({ isOpen: controlledOpen, onOpenChange: setControlledOpen, onClose, vaccine, children }: InventoryLogsModalProps) {
     const { getLogs } = useInventory()
     const [logs, setLogs] = useState<InventoryLog[]>([])
     const [loading, setLoading] = useState(true)
+    const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
+    const isControlled = controlledOpen !== undefined
+    const isOpen = isControlled ? controlledOpen : uncontrolledOpen
+    const setIsOpen = isControlled ? setControlledOpen : setUncontrolledOpen
 
     useEffect(() => {
         if (isOpen) {
@@ -30,13 +36,22 @@ export function InventoryLogsModal({ isOpen, onClose, vaccine }: InventoryLogsMo
         }
     }, [isOpen, vaccine.id])
 
+    const handleClose = () => {
+        setIsOpen?.(false)
+        onClose?.()
+    }
+
     return (
-        <Dialog open={isOpen} onOpenChange={onClose}>
+        <Dialog open={isOpen} onOpenChange={(val) => {
+            if (!val) handleClose()
+            else setIsOpen?.(true)
+        }}>
+            {children && <DialogTrigger asChild>{children}</DialogTrigger>}
             <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Audit Logs - {vaccine.name}</DialogTitle>
                     <DialogDescription>
-                        Transaction history for batch {vaccine.batch_number}
+                        Transaction history for batch {vaccine.batchNumber}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -54,19 +69,19 @@ export function InventoryLogsModal({ isOpen, onClose, vaccine }: InventoryLogsMo
                             <div className="absolute left-4 top-0 bottom-0 w-px bg-border ml-[2px]" />
                             {logs.map((log) => (
                                 <div key={log.id} className="relative pl-10">
-                                    <div className={`absolute left-0 top-1 h-6 w-6 rounded-full border-2 bg-background flex items-center justify-center z-10 ${log.action === 'receive' ? 'border-green-500' :
-                                            log.action === 'wastage' ? 'border-red-500' :
-                                                log.action === 'consume' ? 'border-blue-500' : 'border-gray-500'
+                                    <div className={`absolute left-0 top-1 h-6 w-6 rounded-full border-2 bg-background flex items-center justify-center z-10 ${log.type === 'receipt' ? 'border-green-500' :
+                                        log.type === 'wastage' ? 'border-red-500' :
+                                            log.type === 'dispense' ? 'border-blue-500' : 'border-gray-500'
                                         }`}>
-                                        {log.action === 'receive' && <ArrowUpRight className="h-3 w-3 text-green-500" />}
-                                        {log.action === 'wastage' && <ArrowDownLeft className="h-3 w-3 text-red-500" />}
-                                        {log.action === 'consume' && <ArrowDownLeft className="h-3 w-3 text-blue-500" />}
-                                        {log.action !== 'receive' && log.action !== 'wastage' && log.action !== 'consume' && <Info className="h-3 w-3 text-gray-500" />}
+                                        {log.type === 'receipt' && <ArrowUpRight className="h-3 w-3 text-green-500" />}
+                                        {log.type === 'wastage' && <ArrowDownLeft className="h-3 w-3 text-red-500" />}
+                                        {log.type === 'dispense' && <ArrowDownLeft className="h-3 w-3 text-blue-500" />}
+                                        {log.type !== 'receipt' && log.type !== 'wastage' && log.type !== 'dispense' && <Info className="h-3 w-3 text-gray-500" />}
                                     </div>
 
                                     <div className="bg-muted/30 rounded-lg p-3 space-y-1">
                                         <div className="flex justify-between items-start">
-                                            <span className="font-semibold capitalize text-sm">{log.action.replace('_', ' ')}</span>
+                                            <span className="font-semibold capitalize text-sm">{log.type.replace('_', ' ')}</span>
                                             <span className="text-xs text-muted-foreground">
                                                 {format(new Date(log.created_at), 'MMM d, yyyy h:mm a')}
                                             </span>
@@ -78,10 +93,6 @@ export function InventoryLogsModal({ isOpen, onClose, vaccine }: InventoryLogsMo
                                                 <span className={log.quantity > 0 ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
                                                     {log.quantity > 0 ? '+' : ''}{log.quantity}
                                                 </span>
-                                            </div>
-                                            <div>
-                                                <span className="text-muted-foreground">After: </span>
-                                                <span className="font-medium">{log.previous_quantity + log.quantity}</span>
                                             </div>
                                         </div>
 

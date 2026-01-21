@@ -55,7 +55,14 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
 
       if (response.data) {
         // Transformed data to match UI expectations
-        const transformed: VaccineStock[] = (response.data.data || []).map((item) => ({
+        // apiClient unwraps the first 'data' layer, but the backend may have nested it or not
+        const rawItems = Array.isArray(response.data)
+          ? response.data
+          : (response.data as any).data && Array.isArray((response.data as any).data)
+            ? (response.data as any).data
+            : [];
+
+        const transformed: VaccineStock[] = rawItems.map((item: any) => ({
           ...item,
           name: item.vaccine?.name || "Unknown",
           batchNumber: item.batch_number,
@@ -66,9 +73,9 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
 
         setStock(transformed)
         setPagination({
-          currentPage: response.data.current_page || 1,
-          lastPage: response.data.last_page || 1,
-          total: response.data.total || 0,
+          currentPage: (response.data as any).current_page || 1,
+          lastPage: (response.data as any).last_page || 1,
+          total: (response.data as any).total || (Array.isArray(response.data) ? response.data.length : 0),
         })
       }
     } catch (err) {
@@ -97,14 +104,22 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
   }
 
   const recordWastage = async (id: number, data: any) => {
+    console.log('[InventoryContext] recordWastage initiation', { id, type: typeof id, data })
+    if (!id || isNaN(id)) {
+      console.error('[InventoryContext] Invalid ID provided to recordWastage:', id)
+      return { success: false, error: "Invalid ID" }
+    }
     try {
       const res = await inventoryApi.wastage(id, data)
-      if (res.data) {
-        refreshStock({ page: pagination.currentPage })
+      console.log('[InventoryContext] API full response:', res)
+
+      if (res.data || (res.status >= 200 && res.status < 300)) {
+        await refreshStock({ page: pagination.currentPage })
         return { success: true }
       }
       return { success: false, error: (res.error as any)?.message || "Failed to record wastage" }
     } catch (err) {
+      console.error('[InventoryContext] Exception during recordWastage:', err)
       return { success: false, error: "Network error while recording wastage" }
     }
   }

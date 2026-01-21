@@ -7,7 +7,7 @@ import { InventoryOverview } from "@/components/inventory/inventory-overview"
 import { VaccineStockList } from "@/components/inventory/vaccine-stock-list"
 import { StockAlerts } from "@/components/inventory/stock-alerts"
 import { Button } from "@/components/ui/button"
-import { Plus, Download } from "lucide-react"
+import { Plus, Download, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { useLanguage } from "@/lib/language-context"
 import { t } from "@/lib/translations"
@@ -16,8 +16,9 @@ import { useToast } from "@/hooks/use-toast"
 import { useInventory } from "@/lib/inventory-context"
 import { RoleProtected } from "@/lib/role-protected"
 import { useUser } from "@/lib/user-context"
-import { Suspense } from "react"
+import { Suspense, useState } from "react"
 import type { ReactNode } from "react"
+import { GlobalWastageModal } from "@/components/inventory/global-wastage-modal"
 
 class ErrorBoundary extends React.Component<
   { children: ReactNode; fallback?: ReactNode },
@@ -67,6 +68,7 @@ export default function InventoryPage() {
   const { toast } = useToast()
   const { user } = useUser()
   const { stock } = useInventory()
+  const [isWastageOpen, setIsWastageOpen] = useState(false)
 
   const handleExport = () => {
     try {
@@ -84,19 +86,20 @@ export default function InventoryPage() {
       // Check for expiring soon vaccines
       const expiringVaccines = live.filter((v) => {
         const today = new Date()
-        const expiry = new Date(v.expiryDate)
+        const expiry = new Date(v.expiryDate || "")
         const daysUntilExpiry = Math.floor((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
         return daysUntilExpiry <= 30 && daysUntilExpiry > 0
       })
 
       const expiredVaccines = live.filter((v) => {
         const today = new Date()
-        const expiry = new Date(v.expiryDate)
+        const expiry = new Date(v.expiryDate || "")
         return expiry < today
       })
 
       const reportData: (string | number)[][] = []
 
+      // ... (sections removed for brevity, will keep them in the actual replace)
       // Header section
       reportData.push([t("inventory.report.title", language)])
       reportData.push([
@@ -118,7 +121,7 @@ export default function InventoryPage() {
       ])
       reportData.push([
         t("inventory.report.stockCoverage", language),
-        `${((totalQuantity / totalMinStock) * 100).toFixed(1)}%`,
+        `${((totalQuantity / (totalMinStock || 1)) * 100).toFixed(1)}%`,
       ])
       reportData.push([])
 
@@ -166,21 +169,21 @@ export default function InventoryPage() {
 
       // Detailed Inventory Data Rows
       live.forEach((vaccine) => {
-        const stockPercentage = Math.min((vaccine.quantity / vaccine.minStock) * 100, 100)
+        const stockPercentage = Math.min((vaccine.quantity / (vaccine.minStock || 1)) * 100, 100)
         const today = new Date()
-        const expiry = new Date(vaccine.expiryDate)
-        const daysUntilExpiry = Math.floor((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+        const expiry = new Date(vaccine.expiryDate || "")
+        const daysUntilExpiry = isNaN(expiry.getTime()) ? 0 : Math.floor((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
 
         reportData.push([
-          vaccine.name,
-          vaccine.batchNumber,
-          vaccine.quantity,
-          vaccine.minStock,
+          vaccine.name || "Unknown",
+          vaccine.batchNumber || "N/A",
+          vaccine.quantity || 0,
+          vaccine.minStock || 0,
           `${stockPercentage.toFixed(1)}%`,
-          vaccine.expiryDate,
+          vaccine.expiryDate || "N/A",
           daysUntilExpiry,
-          vaccine.manufacturer,
-          vaccine.status,
+          vaccine.manufacturer || "N/A",
+          vaccine.status || "N/A",
         ])
       })
 
@@ -200,11 +203,11 @@ export default function InventoryPage() {
           .filter((v) => v.status === "critical")
           .forEach((vaccine) => {
             reportData.push([
-              vaccine.name,
-              vaccine.batchNumber,
-              vaccine.quantity,
-              vaccine.minStock,
-              vaccine.manufacturer,
+              vaccine.name || "N/A",
+              vaccine.batchNumber || "N/A",
+              vaccine.quantity || 0,
+              vaccine.minStock || 0,
+              vaccine.manufacturer || "N/A",
             ])
           })
         reportData.push([])
@@ -222,9 +225,9 @@ export default function InventoryPage() {
         ])
         expiringVaccines.forEach((vaccine) => {
           const today = new Date()
-          const expiry = new Date(vaccine.expiryDate)
+          const expiry = new Date(vaccine.expiryDate || "")
           const daysUntilExpiry = Math.floor((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-          reportData.push([vaccine.name, vaccine.batchNumber, vaccine.expiryDate, daysUntilExpiry, vaccine.quantity])
+          reportData.push([vaccine.name || "N/A", vaccine.batchNumber || "N/A", vaccine.expiryDate || "N/A", daysUntilExpiry, vaccine.quantity || 0])
         })
         reportData.push([])
       }
@@ -272,10 +275,10 @@ export default function InventoryPage() {
     }
   }
 
-  const canAddStock = user?.role === "health_official" || user?.role === "admin"
+  const canAddStock = user?.role === "health_official" || user?.role === "admin" || user?.role === "system_administrator" || user?.role === "super_admin" || user?.role === "healthcare_worker"
 
   return (
-    <RoleProtected allowedRoles={["admin", "healthcare_worker", "system_administrator", "super_admin"]}>
+    <RoleProtected allowedRoles={["admin", "healthcare_worker", "system_administrator", "super_admin", "health_official"]}>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -288,12 +291,20 @@ export default function InventoryPage() {
               {t("inventory.export", language)}
             </Button>
             {canAddStock && (
-              <Link href="/dashboard/inventory/add-stock">
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t("inventory.addStock", language)}
-                </Button>
-              </Link>
+              <>
+                <GlobalWastageModal>
+                  <Button variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    {t("inventory.recordWastage", language)}
+                  </Button>
+                </GlobalWastageModal>
+                <Link href="/dashboard/inventory/add-stock">
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    {t("inventory.addStock", language)}
+                  </Button>
+                </Link>
+              </>
             )}
           </div>
         </div>

@@ -262,6 +262,11 @@ export const translations = {
     "inventory.stats.withinThirtyDays": "Within 30 days",
     "inventory.stats.wellStocked": "Well Stocked",
     "inventory.stats.adequateSupply": "Adequate supply",
+    "inventory.recordWastage": "Record Wastage",
+    "inventory.selectBatch": "Select Vaccine Batch",
+    "inventory.wastageReason": "Reason for Wastage",
+    "inventory.wastageQuantity": "Quantity to Remove",
+    "inventory.wastageSuccess": "Wastage recorded successfully",
     // </CHANGE> Adding comprehensive inventory report translation keys
     "inventory.report.title": "Vaccine Inventory Report",
     "inventory.report.generated": "Generated on",
@@ -798,6 +803,11 @@ export const translations = {
     "inventory.stats.withinThirtyDays": "በ30 ቀናት ውስጥ",
     "inventory.stats.wellStocked": "በጥሩ ሁኔታ የተከማቸ",
     "inventory.stats.adequateSupply": "በቂ አቅርቦት",
+    "inventory.recordWastage": "ብክነት ይመዝገቡ",
+    "inventory.selectBatch": "የክትባት ቅንብር ይምረጡ",
+    "inventory.wastageReason": "የብክነት ምክንያት",
+    "inventory.wastageQuantity": "የሚወገድ ብዛት",
+    "inventory.wastageSuccess": "ብክነት በተሳካ ሁኔታ ተመዝግቧል",
 
     // Reports Page
     "reports.title": "ሪፖርቶች እና ትንታኔ",
