@@ -1,6 +1,8 @@
 "use client"
 
 import { Shield, Bell, User, LogOut, Menu, Syringe, AlertTriangle, CheckCircle2 } from "lucide-react"
+import Image from "next/image"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -80,11 +82,15 @@ export function DashboardHeader() {
           <Button variant="ghost" size="icon" onClick={toggleSidebar} className="hidden lg:flex" title="Toggle sidebar">
             <Menu className="h-5 w-5" />
           </Button>
-          <Shield className="h-7 w-7 text-primary" />
-          <div>
-            <h1 className="text-lg font-bold text-foreground">{t("dashboard.header.vaxtrack", language)}</h1>
-            <p className="text-xs text-muted-foreground">{t("dashboard.header.location", language)}</p>
-          </div>
+          <Link href="/" className="flex items-center gap-2 group transition-all duration-300 hover:opacity-80">
+            <div className="group-hover:animate-wiggle transform-gpu transition-transform">
+              <Image src="/logo.svg" alt="Logo" width={40} height={40} className="h-10 w-10" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-foreground">{t("dashboard.header.vaxtrack", language)}</h1>
+              {/* <p className="text-xs text-muted-foreground">{t("dashboard.header.location", language)}</p> */}
+            </div>
+          </Link>
         </div>
 
         <div className="flex items-center gap-3">

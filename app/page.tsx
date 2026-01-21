@@ -61,13 +61,14 @@ export default function HomePage() {
       {/* Header */}
       <header className="border-b border-border bg-card sticky top-0 z-50">
         <div className="container mx-auto px-4 py-3 sm:py-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2 min-w-0">
-            <Shield className="h-6 sm:h-8 w-6 sm:w-8 text-primary flex-shrink-0" />
+          <Link href="/" className="flex items-center gap-2 min-w-0 group transition-all duration-300 hover:opacity-80">
+            <div className="group-hover:animate-wiggle transform-gpu transition-transform">
+              <Image src="/logo.svg" alt="VaxTrack Logo" width={40} height={40} className="h-12 w-12 sm:h-10 sm:w-10" />
+            </div>
             <div className="min-w-0">
               <h1 className="text-lg sm:text-xl font-bold text-foreground truncate">VaxTrack</h1>
-              <p className="text-xs text-muted-foreground hidden sm:block">Addis Ketema Sub-city</p>
             </div>
-          </div>
+          </Link>
           <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             {user ? (
               <Link
@@ -165,7 +166,7 @@ export default function HomePage() {
         <div className="container mx-auto px-4 py-6 sm:py-8">
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left">
             <div className="flex items-center gap-2">
-              <Shield className="h-5 sm:h-6 w-5 sm:w-6 text-primary flex-shrink-0" />
+              <Image src="/logo.svg" alt="VaxTrack Logo" width={24} height={24} className="h-5 sm:h-6 w-5 sm:w-6" />
               <span className="font-semibold text-foreground">VaxTrack</span>
             </div>
             <p className="text-xs sm:text-sm text-muted-foreground">{t("footer.copyright", language)}</p>
