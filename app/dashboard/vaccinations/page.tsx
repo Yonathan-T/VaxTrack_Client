@@ -14,10 +14,10 @@ export default function VaccinationsPage() {
   const { language } = useLanguage()
   const { user } = useUser()
 
-  const canRecord = user?.role === "healthcare_worker" || user?.role === "administrator"
+  const canRecord = user?.role === "healthcare_worker" || user?.role === "admin" || user?.role === "system_administrator" || user?.role === "super_admin"
 
   return (
-    <RoleProtected allowedRoles={["healthcare_worker", "woreda_officer", "administrator", "guardian"]}>
+    <RoleProtected allowedRoles={["healthcare_worker", "woreda_officer", "admin", "system_administrator", "super_admin", "parent"]}>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -34,7 +34,7 @@ export default function VaccinationsPage() {
           )}
         </div>
 
-        {user?.role !== "guardian" && <VaccinationStats />}
+        {user?.role !== "parent" && <VaccinationStats />}
         <VaccinationsList />
       </div>
     </RoleProtected>

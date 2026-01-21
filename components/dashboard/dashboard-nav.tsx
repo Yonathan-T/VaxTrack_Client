@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { LayoutDashboard, Users, Syringe, Calendar, BarChart3, Package, Settings, LogOut, Bell, User } from "lucide-react"
+import { LayoutDashboard, Users, Syringe, Calendar, BarChart3, Package, Settings, LogOut, Bell, User, History } from "lucide-react"
 import { useLanguage } from "@/lib/language-context"
 import { useUser } from "@/lib/user-context"
 import { t } from "@/lib/translations"
@@ -50,31 +50,42 @@ export function DashboardNav() {
         { title: t("dashboard.nav.vaccinations", language), href: "/dashboard/vaccinations", icon: Syringe },
         { title: t("dashboard.nav.reports", language), href: "/dashboard/reports", icon: BarChart3 },
       ],
-      admin: [
-        { title: t("dashboard.nav.children", language), href: "/dashboard/children", icon: Users },
-        { title: "Users", href: "/dashboard/users", icon: Users },
-        { title: t("dashboard.nav.vaccinations", language), href: "/dashboard/vaccinations", icon: Syringe },
-        { title: t("dashboard.nav.appointments", language), href: "/dashboard/appointments", icon: Calendar },
-        { title: t("dashboard.nav.reports", language), href: "/dashboard/reports", icon: BarChart3 },
-        { title: t("dashboard.nav.inventory", language), href: "/dashboard/inventory", icon: Package },
-        {
-          title: t("dashboard.nav.inventoryLogs", language),
-          href: "/dashboard/inventory-logs",
-          icon: BarChart3,
-        },
-        { title: t("dashboard.nav.settings", language), href: "/dashboard/settings", icon: Settings },
-      ],
+      admin: (() => {
+        const isSuperAdmin = user?.role === "admin" && (user as any)?.facility_id == null
+        const isLocalAdmin = user?.role === "admin" && (user as any)?.facility_id != null
+        const items: NavItem[] = []
+        // Common admin features
+        items.push({ title: t("dashboard.nav.children", language), href: "/dashboard/children", icon: Users })
+        // Users should appear right below Children
+        items.push({ title: "Users", href: "/dashboard/users", icon: Users })
+
+        // Super admin specific: Global Reports
+        if (isSuperAdmin) {
+          items.push({ title: t("dashboard.nav.reports", language), href: "/dashboard/reports", icon: BarChart3 })
+          items.push({ title: t("dashboard.nav.inventory", language), href: "/dashboard/inventory", icon: Package })
+          items.push({ title: t("dashboard.nav.inventoryLogs", language), href: "/dashboard/inventory-logs", icon: History })
+        }
+        // Local admin specific: Inventory for own facility, facility-scoped reports
+        if (isLocalAdmin) {
+          items.push({ title: t("dashboard.nav.inventory", language), href: "/dashboard/inventory", icon: Package })
+          items.push({ title: t("dashboard.nav.inventoryLogs", language), href: "/dashboard/inventory-logs", icon: History })
+          items.push({ title: t("dashboard.nav.reports", language), href: "/dashboard/reports", icon: BarChart3 })
+        }
+
+        // Settings at the end for all admins
+        items.push({ title: t("dashboard.nav.settings", language), href: "/dashboard/settings", icon: Settings })
+
+        return items
+      })(),
       system_administrator: [
         { title: t("dashboard.nav.children", language), href: "/dashboard/children", icon: Users },
         { title: "Users", href: "/dashboard/users", icon: Users },
-        { title: t("dashboard.nav.vaccinations", language), href: "/dashboard/vaccinations", icon: Syringe },
-        { title: t("dashboard.nav.appointments", language), href: "/dashboard/appointments", icon: Calendar },
         { title: t("dashboard.nav.reports", language), href: "/dashboard/reports", icon: BarChart3 },
         { title: t("dashboard.nav.inventory", language), href: "/dashboard/inventory", icon: Package },
         {
           title: t("dashboard.nav.inventoryLogs", language),
           href: "/dashboard/inventory-logs",
-          icon: BarChart3,
+          icon: History,
         },
         { title: t("dashboard.nav.settings", language), href: "/dashboard/settings", icon: Settings },
       ],

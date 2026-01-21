@@ -44,13 +44,27 @@ export default function UsersPage() {
     load()
   }, [])
 
-  const filtered = users.filter((u) => {
+  const isSuperAdmin = currentUser?.role === "admin" && (currentUser as any)?.facility_id == null
+  const isLocalAdmin = currentUser?.role === "admin" && (currentUser as any)?.facility_id != null
+
+  const filtered = users.filter((u: any) => {
+    // Facility scoping: local admins see users tied to their facility either by user's facility_id
+    // or via any child's facility_id matching theirs (parents usually have null facility_id)
+    if (isLocalAdmin) {
+      const myFacilityId = String((currentUser as any)?.facility_id)
+      const userFacilityId = u?.facility_id != null ? String(u?.facility_id) : ""
+      const childMatches = Array.isArray(u?.children)
+        ? u.children.some((c: any) => String(c?.facility_id) === myFacilityId)
+        : false
+      if (!myFacilityId || (myFacilityId !== userFacilityId && !childMatches)) return false
+    }
+    // Search filter
     if (!search.trim()) return true
     const q = search.toLowerCase()
     return (
-      (u.name || "").toLowerCase().includes(q) ||
-      (u.email || "").toLowerCase().includes(q) ||
-      (u.role || "").toLowerCase().includes(q)
+      String(u?.name || "").toLowerCase().includes(q) ||
+      String(u?.email || "").toLowerCase().includes(q) ||
+      String(u?.role || "").toLowerCase().includes(q)
     )
   })
 
@@ -59,11 +73,44 @@ export default function UsersPage() {
     return acc
   }, {})
 
+  // Fallback: collect names from user records or their children's facility objects if available
+  users.forEach((u: any) => {
+    if (u.facility && u.facility_id) {
+      const name = typeof u.facility === "string" ? u.facility : (u.facility as any).name
+      if (name) facilityNameById[String(u.facility_id)] = name
+    }
+    if (Array.isArray(u.children)) {
+      u.children.forEach((c: any) => {
+        if (c.facility?.name && c.facility_id) {
+          facilityNameById[String(c.facility_id)] = c.facility.name
+        }
+      })
+    }
+  })
+
   const withMeFirst = [...filtered].sort((a: any, b: any) => {
+    // Pin current user first
     const aIsMe = String(a?.id) === String((currentUser as any)?.id)
     const bIsMe = String(b?.id) === String((currentUser as any)?.id)
     if (aIsMe && !bIsMe) return -1
     if (!aIsMe && bIsMe) return 1
+
+    // For local admins, rank nurses (healthcare_worker) first, then parents tied via children, then others
+    if (isLocalAdmin) {
+      const rank = (u: any) => {
+        if ((u?.role || "").toLowerCase() === "healthcare_worker") return 0
+        const myFacilityId = String((currentUser as any)?.facility_id)
+        const childMatches = Array.isArray(u?.children)
+          ? u.children.some((c: any) => String(c?.facility_id) === myFacilityId)
+          : false
+        if (childMatches && (u?.role || "").toLowerCase() === "parent") return 1
+        return 2
+      }
+      const ra = rank(a)
+      const rb = rank(b)
+      if (ra !== rb) return ra - rb
+    }
+
     return String(a?.name || "").localeCompare(String(b?.name || ""))
   })
 
@@ -117,7 +164,30 @@ export default function UsersPage() {
               ) : (
                 withMeFirst.map((u: any, idx: number) => {
                   const isMe = String(u?.id) === String((currentUser as any)?.id)
-                  const facilityName = u?.facility || facilityNameById[String(u?.facility_id)] || "—"
+                  const childFacilityName = Array.isArray(u?.children) && u.children.length > 0
+                    ? (u.children.find((c: any) => c?.facility?.name)?.facility?.name) ||
+                    facilityNameById[String((u.children.find((c: any) => c?.facility_id != null) || {}).facility_id)]
+                    : undefined
+                  const facilityName =
+                    u?.facility ||
+                    (u?.facility_id != null ? facilityNameById[String(u.facility_id)] : undefined) ||
+                    (u.role !== 'parent' ? childFacilityName : undefined) ||
+                    "—"
+
+                  const formatDate = (dateStr: string) => {
+                    if (!dateStr) return "—"
+                    try {
+                      return new Date(dateStr).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    } catch (e) {
+                      return dateStr
+                    }
+                  }
                   return (
                     <tr key={u.id} className="border-b last:border-b-0 hover:bg-muted/40">
                       <td className="py-3 px-3 text-muted-foreground">{idx + 1}</td>
@@ -131,23 +201,23 @@ export default function UsersPage() {
                           )}
                         </div>
                       </td>
-                    <td className="py-3 px-3 text-muted-foreground truncate">{u.email || "—"}</td>
-                    <td className="py-3 px-3 text-muted-foreground truncate">{(u as any).phone || "—"}</td>
-                    <td className="py-3 px-3">
-                      <Badge variant="secondary" className="capitalize">
-                        {u.role || "—"}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-3 text-muted-foreground truncate">{facilityName}</td>
-                    <td className="py-3 px-3 text-muted-foreground truncate">
-                      {u.createdAt || (u as any).created_at || "—"}
-                    </td>
-                    <td className="py-3 px-3">
-                      <Button asChild variant="outline" size="sm">
-                        <Link href={`/dashboard/users/${u.id}`}>Details</Link>
-                      </Button>
-                    </td>
-                  </tr>
+                      <td className="py-3 px-3 text-muted-foreground truncate">{u.email || "—"}</td>
+                      <td className="py-3 px-3 text-muted-foreground truncate">{(u as any).phone || "—"}</td>
+                      <td className="py-3 px-3">
+                        <Badge variant="secondary" className="capitalize">
+                          {u.role || "—"}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-3 text-muted-foreground truncate">{facilityName}</td>
+                      <td className="py-3 px-3 text-muted-foreground truncate">
+                        {formatDate(u.createdAt || (u as any).created_at)}
+                      </td>
+                      <td className="py-3 px-3">
+                        <Button asChild variant="outline" size="sm">
+                          <Link href={`/dashboard/users/${u.id}`}>Details</Link>
+                        </Button>
+                      </td>
+                    </tr>
                   )
                 })
               )}

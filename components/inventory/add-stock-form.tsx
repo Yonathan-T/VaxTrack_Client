@@ -13,7 +13,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, Loader2 } from "lucide-react"
 import { useLanguage } from "@/lib/language-context"
 import { t } from "@/lib/translations"
-import { addStock as addStockAPI } from "@/lib/healthcare-worker-api"
 import { useInventory } from "@/lib/inventory-context"
 import { useToast } from "@/hooks/use-toast"
 import { useUser } from "@/lib/user-context"
@@ -22,7 +21,7 @@ import { apiClient } from "@/lib/api-client"
 export function AddStockForm() {
   const router = useRouter()
   const { language } = useLanguage()
-  const { refreshStock } = useInventory()
+  const { refreshStock, receiveStock } = useInventory()
   const { toast } = useToast()
   const { user } = useUser()
   const [loading, setLoading] = useState(false)
@@ -90,7 +89,7 @@ export function AddStockForm() {
     try {
       // API expects: vaccine_id, batch_number, quantity, expiry_date, supplier (optional), notes (optional)
       // facility_id is automatically taken from the logged-in user's facility
-      const response = await addStockAPI({
+      const response = await receiveStock({
         vaccine_id: Number.parseInt(formData.vaccine_id),
         batch_number: formData.batchNumber,
         quantity: Number.parseInt(formData.quantity),
@@ -99,8 +98,8 @@ export function AddStockForm() {
         notes: formData.notes || undefined,
       })
 
-      if (response.error) {
-        setError(response.error.message || "Failed to add stock. Please try again.")
+      if (!response.success) {
+        setError(response.error || "Failed to add stock. Please try again.")
         setLoading(false)
         return
       }
@@ -110,8 +109,6 @@ export function AddStockForm() {
         description: "Stock added successfully",
       })
 
-      // Refresh the inventory
-      await refreshStock()
 
       router.push("/dashboard/inventory")
     } catch (err) {

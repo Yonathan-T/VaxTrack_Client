@@ -15,7 +15,7 @@ export default function NewChildPage() {
   const router = useRouter()
 
   return (
-    <RoleProtected allowedRoles={["healthcare_worker", "administrator"]}>
+    <RoleProtected allowedRoles={["healthcare_worker", "admin", "system_administrator", "super_admin"]}>
       <div className="min-h-screen bg-background p-4 md:p-8">
         <div className="max-w-4xl mx-auto space-y-6">
           <div className="flex items-center gap-4 mb-8">

@@ -5,7 +5,7 @@ import { createContext, useContext, useState, useEffect } from "react"
 import { getProfile } from "./auth-api"
 import { apiClient } from "./api-client"
 
-export type UserRole = "healthcare_worker" | "health_official" | "admin" | "parent" | "super_admin"
+export type UserRole = "healthcare_worker" | "health_official" | "admin" | "parent" | "super_admin" | "system_administrator" | "woreda_officer"
 
 export interface User {
   id?: string
@@ -14,6 +14,7 @@ export interface User {
   role: UserRole
   phone?: string
   facility?: string
+  facility_id?: string | number | null
 }
 
 interface UserContextType {

@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useLanguage } from "@/lib/language-context"
 import { useToast } from "@/hooks/use-toast"
 import { apiClient } from "@/lib/api-client"
-import type { User } from "@/lib/admin-api"
+import type { User, Facility } from "@/lib/admin-api"
+import { getFacilities } from "@/lib/admin-api"
 
 interface EditUserModalProps {
   isOpen: boolean
@@ -27,9 +28,27 @@ export function EditUserModal({ isOpen, onClose, user, onUserSaved }: EditUserMo
     name: "",
     email: "",
     role: "healthcare_worker",
-    facility: "",
+    facility_id: null as string | number | null,
     status: "active" as "active" | "inactive" | "pending",
   })
+  const [facilities, setFacilities] = useState<Facility[]>([])
+
+  useEffect(() => {
+    const loadFacilities = async () => {
+      try {
+        const res = await getFacilities()
+        const payload: any = res.data
+        const fArray =
+          (Array.isArray(payload?.facilities) && payload.facilities) ||
+          (Array.isArray(payload?.data) && payload.data) ||
+          []
+        setFacilities(fArray as Facility[])
+      } catch (e) {
+        // ignore silently; dropdown will be empty
+      }
+    }
+    if (isOpen) loadFacilities()
+  }, [isOpen])
 
   useEffect(() => {
     if (user) {
@@ -37,7 +56,7 @@ export function EditUserModal({ isOpen, onClose, user, onUserSaved }: EditUserMo
         name: user.name,
         email: user.email,
         role: user.role,
-        facility: user.facility || "",
+        facility_id: (user as any).facility_id ?? null,
         status: user.status,
       })
     } else {
@@ -45,7 +64,7 @@ export function EditUserModal({ isOpen, onClose, user, onUserSaved }: EditUserMo
         name: "",
         email: "",
         role: "healthcare_worker",
-        facility: "",
+        facility_id: null,
         status: "active",
       })
     }
@@ -69,9 +88,17 @@ export function EditUserModal({ isOpen, onClose, user, onUserSaved }: EditUserMo
       const method = user ? "PUT" : "POST"
       const endpoint = user ? `/v1/admin/users/${user.id}` : "/v1/admin/users"
 
+      const payload: any = {
+        name: formData.name,
+        email: formData.email,
+        role: formData.role,
+        status: formData.status,
+        facility_id: formData.facility_id ?? null,
+      }
+
       const { data, error } = await (method === "POST"
-        ? apiClient.post<{ user: User }>(endpoint, formData)
-        : apiClient.put<{ user: User }>(endpoint, formData))
+        ? apiClient.post<{ user: User }>(endpoint, payload)
+        : apiClient.put<{ user: User }>(endpoint, payload))
 
       if (error) {
         toast({
@@ -156,13 +183,23 @@ export function EditUserModal({ isOpen, onClose, user, onUserSaved }: EditUserMo
               </Select>
             </div>
             <div>
-              <Label htmlFor="facility">{language === "am" ? "ጤና ተቋም" : "Facility"}</Label>
-              <Input
-                id="facility"
-                value={formData.facility}
-                onChange={(e) => setFormData({ ...formData, facility: e.target.value })}
-                placeholder={language === "am" ? "ተቋም ያስገቡ" : "Enter facility"}
-              />
+              <Label htmlFor="facility_id">{language === "am" ? "ጤና ተቋም" : "Facility"}</Label>
+              <Select
+                value={formData.facility_id != null ? String(formData.facility_id) : ""}
+                onValueChange={(value) => setFormData({ ...formData, facility_id: value === "" ? null : value })}
+              >
+                <SelectTrigger id="facility_id">
+                  <SelectValue placeholder={language === "am" ? "ተቋም ይምረጡ" : "Select facility (optional)"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">{language === "am" ? "አንዳችም" : "None (Super Admin)"}</SelectItem>
+                  {facilities.map((f) => (
+                    <SelectItem key={String((f as any).id)} value={String((f as any).id)}>
+                      {f.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

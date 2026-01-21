@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { useLanguage } from "@/lib/language-context"
 import { useUser } from "@/lib/user-context"
 import { RoleProtected } from "@/lib/role-protected"
-import { Settings, Users, Lock, Bell, Database, AlertCircle, Download } from "lucide-react"
+import { Settings, Users, Lock, Bell, Database, AlertCircle, Download, User as UserIcon } from "lucide-react"
 import { UserManagement } from "@/components/admin/user-management"
 import { SecuritySettings } from "@/components/admin/security-settings"
 import { NotificationSettings } from "@/components/admin/notification-settings"
@@ -15,8 +15,9 @@ import { SystemSettings } from "@/components/admin/system-settings"
 import { SystemTroubleshooting } from "@/components/admin/system-troubleshooting"
 import { SystemUpdates } from "@/components/admin/system-updates"
 import { ParentSettings } from "@/components/dashboard/parent-settings"
+import { UserProfileSettings } from "@/components/dashboard/user-profile-settings"
 
-type Tab = "overview" | "users" | "security" | "notifications" | "backups" | "system" | "troubleshooting" | "updates"
+type Tab = "overview" | "profile" | "notifications" | "backups" | "system" | "troubleshooting" | "updates"
 
 export default function SettingsPage() {
   const { language } = useLanguage()
@@ -38,14 +39,9 @@ export default function SettingsPage() {
       icon: Settings,
     },
     {
-      id: "users",
-      label: language === "am" ? "ተጠቃሚ" : "Users",
-      icon: Users,
-    },
-    {
-      id: "security",
-      label: language === "am" ? "ደህንነት" : "Security",
-      icon: Lock,
+      id: "profile",
+      label: language === "am" ? "መግለጫ" : "Profile",
+      icon: UserIcon,
     },
     {
       id: "notifications",
@@ -81,7 +77,7 @@ export default function SettingsPage() {
   const visibleTabs = tabs.filter((tab) => !tab.systemAdminOnly || isSystemAdmin)
 
   return (
-    <RoleProtected allowedRoles={["admin", "super_admin"]}>
+    <RoleProtected allowedRoles={["admin", "system_administrator", "super_admin"]}>
       <div className="space-y-6">
         {/* Header */}
         <div>
@@ -127,32 +123,24 @@ export default function SettingsPage() {
                         <h3 className="text-lg font-semibold text-foreground">{tab.label}</h3>
                         <p className="text-sm text-muted-foreground mt-2">
                           {language === "am"
-                            ? tab.id === "users"
-                              ? "ተጠቃሚ መለያ"
-                              : tab.id === "security"
-                                ? "ደህንነት"
-                                : tab.id === "notifications"
-                                  ? "ማሳወቂያ"
-                                  : tab.id === "backups"
-                                    ? "ምደባ"
-                                    : tab.id === "system"
-                                      ? "ስርዓት"
-                                      : tab.id === "troubleshooting"
-                                        ? "ችግር ፍታት"
-                                        : "ማሳሪያ"
-                            : tab.id === "users"
-                              ? "Manage user accounts"
-                              : tab.id === "security"
-                                ? "Configure security"
-                                : tab.id === "notifications"
-                                  ? "Manage notifications"
-                                  : tab.id === "backups"
-                                    ? "Database backups"
-                                    : tab.id === "system"
-                                      ? "System configuration"
-                                      : tab.id === "troubleshooting"
-                                        ? "Troubleshoot system issues"
-                                        : "Check for updates"}
+                            ? tab.id === "notifications"
+                              ? "ማሳወቂያ"
+                              : tab.id === "backups"
+                                ? "ምደባ"
+                                : tab.id === "system"
+                                  ? "ስርዓት"
+                                  : tab.id === "troubleshooting"
+                                    ? "ችግር ፍታት"
+                                    : "ማሳሪያ"
+                            : tab.id === "notifications"
+                              ? "Manage notifications"
+                              : tab.id === "backups"
+                                ? "Database backups"
+                                : tab.id === "system"
+                                  ? "System configuration"
+                                  : tab.id === "troubleshooting"
+                                    ? "Troubleshoot system issues"
+                                    : "Check for updates"}
                         </p>
                       </div>
                       <IconComponent className="h-6 w-6 text-primary opacity-50" />
@@ -166,8 +154,7 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {activeTab === "users" && <UserManagement />}
-          {activeTab === "security" && <SecuritySettings />}
+          {activeTab === "profile" && <UserProfileSettings />}
           {activeTab === "notifications" && <NotificationSettings />}
           {activeTab === "backups" && isSystemAdmin && <BackupManagement />}
           {activeTab === "system" && isSystemAdmin && <SystemSettings />}

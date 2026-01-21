@@ -16,7 +16,7 @@ export default function ChildrenPage() {
   const canRegister = user?.role === "healthcare_worker" || user?.role === "admin"
 
   return (
-    <RoleProtected allowedRoles={["healthcare_worker", "woreda_officer", "admin", "parent"]}>
+    <RoleProtected allowedRoles={["healthcare_worker", "woreda_officer", "admin", "system_administrator", "super_admin", "parent"]}>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>

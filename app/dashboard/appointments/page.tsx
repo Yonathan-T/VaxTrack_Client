@@ -17,10 +17,10 @@ export default function AppointmentsPage() {
   const { user } = useUser()
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
 
-  const canSchedule = user?.role === "healthcare_worker" || user?.role === "administrator"
+  const canSchedule = user?.role === "healthcare_worker" || user?.role === "admin" || user?.role === "system_administrator" || user?.role === "super_admin"
 
   return (
-    <RoleProtected allowedRoles={["healthcare_worker", "woreda_officer", "administrator"]}>
+    <RoleProtected allowedRoles={["healthcare_worker", "woreda_officer", "admin", "system_administrator", "super_admin"]}>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>

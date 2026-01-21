@@ -6,7 +6,12 @@ export interface User {
   email: string
   name: string
   role: string
+  // Human-readable facility name if present
   facility?: string
+  // Facility relation identifier from backend, may be null for super admins
+  facility_id?: string | number | null
+  // Optional children array from API (for parent accounts), structure may vary
+  children?: Array<any>
   createdAt: string
   status: "active" | "inactive" | "pending"
 }

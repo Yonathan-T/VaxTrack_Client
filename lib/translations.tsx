@@ -687,6 +687,7 @@ export const translations = {
     "children.title": "የልጆች የጤና መዝገብ",
     "children.subtitle": "የልጆችን የክትባት ሁኔታ ይከታተሉ እና ያስተዳድሩ",
     "children.registerChild": "ልጅ ይመዝገቡ",
+    "children.id": "የልጅ መታወቂያ",
     "children.vaccineId": "ክትባት ID",
     "children.registerNewChild": "ሕዳሽ ልጅ ይመዝገቡ",
     "children.enterChildGuardianInfo": "የልጅ እና ጠበቂ መረጃ ይግቡ",
