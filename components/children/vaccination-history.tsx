@@ -128,10 +128,12 @@ export function VaccinationHistory({ childId }: { childId: string }) {
                 </p>
               )}
             </div>
-            <Button size="sm" onClick={() => setIsRecordOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              {t("vaccinations.recordVaccination", language) || "Record Vaccination"}
-            </Button>
+            {user?.role === "healthcare_worker" && (
+              <Button size="sm" onClick={() => setIsRecordOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                {t("vaccinations.recordVaccination", language) || "Record Vaccination"}
+              </Button>
+            )}
           </div>
 
           {completedVaccinations.length === 0 ? (
@@ -177,10 +179,10 @@ export function VaccinationHistory({ childId }: { childId: string }) {
                       <p className="font-medium text-foreground">
                         {((record as any).date_administered || (record as any).dateAdministered)
                           ? new Date(((record as any).date_administered || (record as any).dateAdministered)).toLocaleDateString("en-US", {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                            })
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          })
                           : "-"}
                       </p>
                     </div>
@@ -239,34 +241,31 @@ export function VaccinationHistory({ childId }: { childId: string }) {
               {dueVaccinations.map((record: any) => {
                 const scheduledDate = (record as any).scheduled_date || (record as any).scheduledDate
                   ? new Date((record as any).scheduled_date || (record as any).scheduledDate).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })
                   : "-"
                 const isOverdue = (record as any).status === "overdue"
 
                 return (
                   <div
                     key={record.id}
-                    className={`flex items-center justify-between p-4 rounded-lg border ${
-                      isOverdue
-                        ? "bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800"
-                        : "bg-muted/50 border-border"
-                    }`}
+                    className={`flex items-center justify-between p-4 rounded-lg border ${isOverdue
+                      ? "bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800"
+                      : "bg-muted/50 border-border"
+                      }`}
                   >
                     <div className="flex items-center gap-4 flex-1">
                       <div
-                        className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                          isOverdue
-                            ? "bg-red-100 dark:bg-red-900/20"
-                            : "bg-orange-100 dark:bg-orange-900/20"
-                        }`}
+                        className={`w-12 h-12 rounded-full flex items-center justify-center ${isOverdue
+                          ? "bg-red-100 dark:bg-red-900/20"
+                          : "bg-orange-100 dark:bg-orange-900/20"
+                          }`}
                       >
                         <Calendar
-                          className={`h-6 w-6 ${
-                            isOverdue ? "text-red-600 dark:text-red-400" : "text-orange-600 dark:text-orange-400"
-                          }`}
+                          className={`h-6 w-6 ${isOverdue ? "text-red-600 dark:text-red-400" : "text-orange-600 dark:text-orange-400"
+                            }`}
                         />
                       </div>
                       <div className="flex-1">
@@ -289,18 +288,20 @@ export function VaccinationHistory({ childId }: { childId: string }) {
                         </div>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant={isOverdue ? "default" : "outline"}
-                        onClick={() => handleRecordVaccination(record)}
-                      >
-                        Record Now
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => handleSchedule(record)}>
-                        Reschedule
-                      </Button>
-                    </div>
+                    {user?.role === "healthcare_worker" && (
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant={isOverdue ? "default" : "outline"}
+                          onClick={() => handleRecordVaccination(record)}
+                        >
+                          Record Now
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => handleSchedule(record)}>
+                          Reschedule
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )
               })}
