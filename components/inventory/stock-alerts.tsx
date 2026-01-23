@@ -43,7 +43,7 @@ export function StockAlerts() {
       const response = await getStockAlerts()
 
       if (response.error) {
-        console.error("[StockAlerts] Error fetching alerts:", response.error)
+       // console.error("[StockAlerts] Error fetching alerts:", response.error)
         setAlerts([])
         return
       }

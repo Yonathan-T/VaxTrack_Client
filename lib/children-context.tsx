@@ -42,42 +42,7 @@ interface ChildrenContextType {
 const ChildrenContext = createContext<ChildrenContextType | undefined>(undefined)
 
 const getInitialMockChildren = (language: Language): Child[] => {
-  const translations = childrenTranslations[language]
-  return translations.map((translated) => ({
-    id: translated.id,
-    vaccineId: `vac${String(Number.parseInt(translated.id)).padStart(6, "0")}`,
-    firstName: translated.firstName,
-    middleName: translated.middleName,
-    lastName: translated.lastName,
-    dateOfBirth: language === "am" ? "2024-03-15" : "2024-03-15",
-    gender: translated.id === "2" || translated.id === "4" ? "female" : "male",
-    placeOfBirth: translated.placeOfBirth,
-    birthWeight: translated.id === "1" ? "3.5" : translated.id === "2" ? "3.2" : translated.id === "3" ? "3.8" : "3.1",
-    guardianFirstName: translated.guardianFirstName,
-    guardianLastName: translated.guardianLastName,
-    relationship: translated.id === "3" ? "father" : "mother",
-    guardianPhone:
-      translated.id === "1"
-        ? "+251911234567"
-        : translated.id === "2"
-          ? "+251922345678"
-          : translated.id === "3"
-            ? "+251933456789"
-            : "+251944567890",
-    guardianEmail:
-      translated.id === "1"
-        ? "almaz@example.com"
-        : translated.id === "2"
-          ? "meseret@example.com"
-          : translated.id === "3"
-            ? "hanna@example.com"
-            : "bethlehem@example.com",
-    kebele: translated.kebele,
-    woreda: translated.woreda,
-    houseNumber: translated.id === "1" ? "123" : translated.id === "2" ? "456" : translated.id === "3" ? "789" : "321",
-    notes: "",
-    parentId: translated.id === "1" || translated.id === "2" ? "parent_1" : "parent_2",
-  }))
+  return []
 }
 
 export function ChildrenProvider({ children }: { children: React.ReactNode }) {

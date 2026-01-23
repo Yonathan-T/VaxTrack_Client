@@ -35,6 +35,12 @@ export interface VaccineDefinition {
   maxAgeMonths: number
   requiredDoses: number
 }
+export interface CoverageReportItem {
+  vaccine: string
+  code: string
+  total_given: number
+  coverage_percentage: number
+}
 
 export interface CoverageReport {
   period: string
@@ -153,6 +159,88 @@ export async function getAllChildrenForAdmin(searchQuery?: string) {
     total: number
     per_page: number
   }>(url)
+}
+
+export interface TrendData {
+  month: string
+  bcg: number
+  opv0: number
+  penta1: number
+  pcv1: number
+  rota1: number
+  opv1: number
+  penta2: number
+  pcv2: number
+  rota2: number
+  opv2: number
+  penta3: number
+  pcv3: number
+  opv3: number
+  ipv: number
+  measles1: number
+  measles2: number
+  tt1: number
+  tt2: number
+  tt3: number
+  tt4: number
+  tt5: number
+  [key: string]: string | number
+}
+
+export interface GeographicData {
+  label: string
+  coverage: number
+  children: number
+  fullyVaccinated: number
+}
+
+export interface OverdueVaccine {
+  id: number
+  vaccine: string
+  vaccine_code: string
+  scheduled_date: string
+  days_overdue: number
+  status: string
+}
+
+export interface DefaulterData {
+  child_id: number
+  name: string
+  address: {
+    kebele: string
+    woreda: string
+    house_number: string
+  }
+  parent: string
+  parent_phone: string
+  parent_email: string
+  overdue_vaccines: OverdueVaccine[]
+  total_overdue: number
+  most_overdue_days: number
+}
+
+export interface AnalyticsReport {
+  trends: TrendData[]
+  geographic: GeographicData[]
+  defaulters: DefaulterData[]
+}
+
+export async function getAnalyticsReport() {
+  return apiClient.get<AnalyticsReport>("/v1/reports/analytics")
+}
+
+export async function downloadReport(reportType: "coverage" | "overdue_summary" | "user_list", format: "csv" | "pdf") {
+  // Use window.open or fetch depending on how you want to handle the file
+  // The guide says GET /api/v1/reports/download/{reportType}?format={format}
+  const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null
+  const url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"}/v1/reports/download/${reportType}?format=${format}`
+
+  if (token) {
+    // For downloads with auth, we often need to fetch and blob or use a query param if supported
+    // Since it's a GET request clearly defined in the guide, let's provide a way to get the URL
+    return { url, token }
+  }
+  return { url }
 }
 
 export async function receiveInventory(data: {

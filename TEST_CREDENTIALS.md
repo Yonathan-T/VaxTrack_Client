@@ -1,60 +1,114 @@
-# VaxTrack - Test Credentials
+# reports
+i have this in my back end
 
-Below are the test user accounts you can use to sign in and test different user roles in the VaxTrack application.
+Route::middleware('role:admin|health_official')->prefix('reports')->group(function () {
+         Route::get('/coverage', [AdminController::class, 'vaccineCoverageReport']);
+         Route::get('/download/{reportType}', [AdminController::class, 'downloadReport']);
+         Route::get('/stats', [AdminController::class, 'stats']);
+    });
+# and for stats 
+GET v1/reports/stats
+{
+    "success": true,
+    "data": {
+        "total_children": 0,
+        "total_parents": 0,
+        "total_nurses": 1,
+        "total_health_officials": 0,
+        "total_vaccines_given": 0,
+        "total_overdue": 0,
+        "coverage_bcg": 0,
+        "coverage_measles1": 0
+    }
+}
+# the download,  this is the method
+```
+ public function downloadReport(Request $request, $reportType)
+    {
+        $format = $request->query('format', 'csv');
+        $columns = [];
+        $data = [];
+        $title = 'Report';
+        $summary = '';
 
-## Test User Accounts
+        $facilityId = auth()->user()->facility_id;
 
-### Healthcare Worker / Nurse
-- **Email:** healthcare@gmail.com
-- **Password:** Healthcare123!
-- **Role:** Healthcare Worker/Nurse
-- **Facility:** Central Health Clinic
+        if ($reportType === 'coverage') {
+            $data = $this->generateCoverageReportData($columns, $facilityId); 
+            $title = 'Vaccine Coverage Report';
+            $summary = 'This report shows the vaccination coverage percentage for each vaccine.';
+        } elseif ($reportType === 'overdue_summary') {
+            $data = $this->generateOverdueSummaryData($columns, $facilityId);
+            $title = 'Overdue Vaccinations Summary';
+            $summary = 'This report lists children with overdue vaccinations.';
+        } elseif ($reportType === 'user_list') {
+            $data = $this->generateUserData($columns, $facilityId);
+            $title = 'System Users List';
+        } else {
+            return response()->json(['error' => 'Invalid report type'], 400);
+        }
 
-### Woreda Officer
-- **Email:** woreda@gmail.com
-- **Password:** Woreda123!
-- **Role:** Woreda Officer
-- **Facility:** Woreda Health Office
+        if ($format === 'pdf') {
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reports.generic', [
+                'title' => $title,
+                'summary' => $summary,
+                'columns' => $columns,
+                'data' => $data
+            ]);
+            
+            $filename = "report_{$reportType}_" . now()->format('Ymd_His') . ".pdf";
+            return $pdf->download($filename);
+        }
 
-### Health Facility Administrator
-- **Email:** admin@gmail.com
-- **Password:** Admin123!
-- **Role:** Administrator
-- **Facility:** Regional Hospital
+        // CSV (Default)
+        $filename = "report_{$reportType}_" . now()->format('Ymd_His') . ".csv";
+        $headers = [
+            "Content-type"          => "text/csv",
+            "Content-Disposition"   => "attachment; filename={$filename}",
+            "Pragma"                => "no-cache",
+            "Cache-Control"         => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"               => "0"
+        ];
 
-### System Administrator
-- **Email:** sysadmin@gmail.com
-- **Password:** SysAdmin123!
-- **Role:** System Administrator
-- **Facility:** Ministry of Health
+        $callback = function() use ($data, $columns) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $columns); 
 
-### Guardian / Parent
-- **Email:** parent@gmail.com
-- **Password:** Parent123!
-- **Role:** Guardian
-- **Facility:** N/A (Parents don't need facility assignment)
+            foreach ($data as $row) {
+                fputcsv($file, $row);
+            }
+            fclose($file);
+        };
 
-## How to Sign In
+        return response()->stream($callback, 200, $headers);
+    }
+    ```
 
-1. Go to the **Sign In** page
-2. Enter one of the email addresses above
-3. Enter the corresponding password
-4. Click **Sign In**
-5. You will be redirected to your role-specific dashboard
+# for vaccine coverage we got this
+```
+public function vaccineCoverageReport()
+    {
+        $vaccines = \App\Models\Vaccine::all();
+        $report = [];
+        $facilityId = auth()->user()->facility_id;
+        $totalChildren = Child::query()->when($facilityId, fn($q) => $q->where('facility_id', $facilityId))->count();
 
-## Creating New Accounts
-
-You can also create new test accounts during registration:
-- Go to the **Create Account** page
-- Fill in your details
-- Use any email format like: `yourname@gmail.com`, `yourname@yahoo.com`, etc.
-- The email must be in a valid email format (not `@example.com`)
-- Choose your role and facility information
-- Click **Create Account**
-
-## Notes
-
-- All passwords contain uppercase, lowercase, numbers, and special characters for security
-- Change test passwords in a production environment
-- Each user role has different dashboard views and permissions
-- Test accounts can be reset by your administrator if needed
+        if ($totalChildren > 0) {
+            foreach ($vaccines as $vaccine) {
+                $given = VaccinationRecord::where('vaccine_id', $vaccine->id)
+                    ->where('status', 'completed')
+                    ->whereHas('child', function($q) use ($facilityId) {
+                        $q->when($facilityId, fn($sub) => $sub->where('facility_id', $facilityId));
+                    })
+                    ->count();
+                
+                $report[] = [
+                    'vaccine' => $vaccine->name,
+                    'code' => $vaccine->code,
+                    'total_given' => $given,
+                    'coverage_percentage' => round(($given / $totalChildren) * 100, 1)
+                ];
+            }
+        }
+        ```
+    

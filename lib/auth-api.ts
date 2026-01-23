@@ -72,6 +72,14 @@ export async function googleOAuthRedirect() {
   window.location.href = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"}/auth/social/google/redirect`
 }
 
+export async function changePassword(data: {
+  old_password: string
+  password: string
+  password_confirmation: string
+}) {
+  return apiClient.put("/v1/user/password", data)
+}
+
 export async function checkSystemStatus() {
   return apiClient.get("/status")
 }

@@ -41,13 +41,11 @@ export function DashboardNav() {
     const roleItems: Record<string, NavItem[]> = {
       healthcare_worker: [
         { title: t("dashboard.nav.children", language), href: "/dashboard/children", icon: Users },
-        { title: t("dashboard.nav.vaccinations", language), href: "/dashboard/vaccinations", icon: Syringe },
         { title: t("dashboard.nav.appointments", language), href: "/dashboard/appointments", icon: Calendar },
         { title: t("dashboard.nav.inventory", language), href: "/dashboard/inventory", icon: Package },
       ],
       woreda_officer: [
         { title: t("dashboard.nav.children", language), href: "/dashboard/children", icon: Users },
-        { title: t("dashboard.nav.vaccinations", language), href: "/dashboard/vaccinations", icon: Syringe },
         { title: t("dashboard.nav.reports", language), href: "/dashboard/reports", icon: BarChart3 },
       ],
       admin: (() => {
@@ -58,7 +56,8 @@ export function DashboardNav() {
         items.push({ title: t("dashboard.nav.children", language), href: "/dashboard/children", icon: Users })
         // Users should appear right below Children
         items.push({ title: "Users", href: "/dashboard/users", icon: Users })
-
+        // Then the rest
+        items.push({ title: t("dashboard.nav.appointments", language), href: "/dashboard/appointments", icon: Calendar })
         // Super admin specific: Global Reports
         if (isSuperAdmin) {
           items.push({ title: t("dashboard.nav.reports", language), href: "/dashboard/reports", icon: BarChart3 })
@@ -71,15 +70,14 @@ export function DashboardNav() {
           items.push({ title: t("dashboard.nav.inventoryLogs", language), href: "/dashboard/inventory-logs", icon: History })
           items.push({ title: t("dashboard.nav.reports", language), href: "/dashboard/reports", icon: BarChart3 })
         }
-
-        // Settings at the end for all admins
+        // Always show settings at the end for admin
         items.push({ title: t("dashboard.nav.settings", language), href: "/dashboard/settings", icon: Settings })
-
         return items
       })(),
       system_administrator: [
         { title: t("dashboard.nav.children", language), href: "/dashboard/children", icon: Users },
         { title: "Users", href: "/dashboard/users", icon: Users },
+        { title: t("dashboard.nav.appointments", language), href: "/dashboard/appointments", icon: Calendar },
         { title: t("dashboard.nav.reports", language), href: "/dashboard/reports", icon: BarChart3 },
         { title: t("dashboard.nav.inventory", language), href: "/dashboard/inventory", icon: Package },
         {

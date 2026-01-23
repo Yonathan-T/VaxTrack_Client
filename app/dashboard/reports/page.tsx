@@ -1,155 +1,210 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import * as XLSX from "xlsx"
 import { CoverageReport } from "@/components/reports/coverage-report"
 import { TrendAnalysis } from "@/components/reports/trend-analysis"
 import { DefaulterReport } from "@/components/reports/defaulter-report"
 import { GeographicReport } from "@/components/reports/geographic-report"
-import { ReportFilter, type FilterOptions } from "@/components/reports/report-filter"
 import { Button } from "@/components/ui/button"
-import { Download, Filter } from "lucide-react"
+import { Download, FileText, FileSpreadsheet, ChevronDown } from "lucide-react"
 import { useLanguage } from "@/lib/language-context"
 import { t } from "@/lib/translations"
 import { useToast } from "@/hooks/use-toast"
-import { useVaccinations } from "@/lib/vaccinations-context"
-import { useChildren } from "@/lib/children-context"
 import { RoleProtected } from "@/lib/role-protected"
-import { getCoverageReport } from "@/lib/admin-api"
+import { getAllChildrenForAdmin, getUsers, getAnalyticsReport, downloadReport } from "@/lib/admin-api"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 export default function ReportsPage() {
   const { language } = useLanguage()
   const { toast } = useToast()
-  const [showFilter, setShowFilter] = useState(false)
-  const [activeFilters, setActiveFilters] = useState<FilterOptions | null>(null)
-  const { vaccinations } = useVaccinations()
-  const { children } = useChildren()
-  const [reportData, setReportData] = useState<any>(null)
+
+  const [stats, setStats] = useState({
+    users: 0,
+    children: 0,
+    vaccinations: 0,
+  })
+  const [analyticsData, setAnalyticsData] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const fetchReportData = async () => {
+    async function fetchData() {
       try {
-        const { data, error } = await getCoverageReport()
-        if (!error && data) {
-          setReportData(data)
+        setIsLoading(true)
+        const [usersRes, childrenRes, analyticsRes] = await Promise.all([
+          getUsers(),
+          getAllChildrenForAdmin(),
+          getAnalyticsReport(),
+        ])
+
+        const usersCount = (usersRes.data as any)?.users?.length || (usersRes.data as any)?.data?.length || 0
+        const childrenCount = (childrenRes.data as any)?.children?.length || (childrenRes.data as any)?.data?.length || 0
+
+        // Estimate total vaccinations from trends if available, else 0
+        const trends = (analyticsRes.data as any)?.trends || []
+        const vacCount = trends.reduce((acc: number, curr: any) => {
+          // Sum all granular vaccine keys
+          const keys = [
+            'bcg', 'opv0', 'penta1', 'pcv1', 'rota1', 'opv1',
+            'penta2', 'pcv2', 'rota2', 'opv2', 'penta3', 'pcv3',
+            'opv3', 'ipv', 'measles1', 'measles2',
+            'tt1', 'tt2', 'tt3', 'tt4', 'tt5'
+          ]
+          const monthlyTotal = keys.reduce((mAcc, key) => mAcc + (Number(curr[key]) || 0), 0)
+          return acc + monthlyTotal
+        }, 0)
+
+        setStats({
+          users: usersCount,
+          children: childrenCount,
+          vaccinations: vacCount,
+        })
+
+        if (analyticsRes.data) {
+          setAnalyticsData(analyticsRes.data)
         }
       } catch (err) {
-        console.error("Failed to fetch coverage report:", err)
+        console.error("Failed to fetch reports data:", err)
+        toast({
+          title: "Error",
+          description: "Failed to load reports data",
+          variant: "destructive",
+        })
       } finally {
         setIsLoading(false)
       }
     }
+    fetchData()
+  }, [toast])
 
-    fetchReportData()
-  }, [])
-
-  const handleFilter = () => {
-    setShowFilter(!showFilter)
-  }
-
-  const handleApplyFilter = (filters: FilterOptions) => {
-    setActiveFilters(filters)
-    toast({
-      title: t("reports.filter", language),
-      description: `Filters applied: ${filters.dateRange} | ${filters.status}${filters.facility ? ` | ${filters.facility}` : ""}`,
-    })
-  }
-
-  const handleExport = () => {
+  const handleDownload = async (reportType: "coverage" | "overdue_summary" | "user_list", format: "csv" | "pdf") => {
     try {
-      console.log("[v0] Starting export with XLSX version:", XLSX.version)
-      const childrenMap = new Map(children.map((child) => [child.id, child]))
-
-      const vaccinationReportData = vaccinations.map((vac) => {
-        const child = childrenMap.get(vac.childId)
-        return {
-          [t("reports.vaccination.childName", language)]: child?.firstName || "Unknown",
-          [t("reports.vaccination.dateOfBirth", language)]: child?.dateOfBirth || "N/A",
-          [t("reports.vaccination.vaccine", language)]: vac.vaccine,
-          [t("reports.vaccination.vaccinationDate", language)]: vac.date,
-          [t("reports.vaccination.batchNumber", language)]: vac.batchNumber,
-          [t("reports.vaccination.facility", language)]: vac.facility,
-          [t("reports.vaccination.administeredBy", language)]: vac.administeredBy,
-          [t("reports.vaccination.status", language)]: vac.status,
-          [t("reports.vaccination.nextDue", language)]: vac.nextDue,
-        }
+      toast({
+        title: language === "am" ? "ወደ ውጭ በመላክ ላይ..." : "Exporting...",
+        description: language === "am" ? "ሪፖርቱን እያዘጋጀን ነው..." : "Preparing your report...",
       })
 
-      console.log("[v0] Vaccination report data prepared:", vaccinationReportData.length, "records")
+      const { url, token } = await downloadReport(reportType, format)
 
-      const today = new Date().toISOString().split("T")[0]
+      const response = await fetch(url, {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Accept": "application/json",
+        },
+      })
 
-      const ws = XLSX.utils.json_to_sheet(vaccinationReportData)
-      const wb = XLSX.utils.book_new()
-      XLSX.utils.book_append_sheet(wb, ws, "Vaccination Report")
+      if (!response.ok) throw new Error("Export failed")
 
-      // Write to blob and trigger download manually
-      const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" })
-      const blob = new Blob([wbout], { type: "application/octet-stream" })
-      const url = URL.createObjectURL(blob)
-
+      const blob = await response.blob()
+      const downloadUrl = window.URL.createObjectURL(blob)
       const link = document.createElement("a")
-      link.href = url
-      link.download = `vaccination-report-${language}-${today}.xlsx`
+      link.href = downloadUrl
+      link.setAttribute("download", `${reportType}_report_${new Date().toISOString().split('T')[0]}.${format === 'csv' ? 'csv' : 'pdf'}`)
       document.body.appendChild(link)
       link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
-
-      console.log("[v0] Export completed successfully")
+      link.parentNode?.removeChild(link)
+      window.URL.revokeObjectURL(downloadUrl)
 
       toast({
-        title: t("reports.exportReport", language),
-        description: `Report exported successfully with ${vaccinationReportData.length} records in ${language === "en" ? "English" : "Amharic"}`,
+        title: language === "am" ? "ተሳክቷል" : "Success",
+        description: language === "am" ? "ሪፖርቱ በተሳካ ሁኔታ ወርዷል" : "Report downloaded successfully",
       })
     } catch (error) {
-      console.error("[v0] Export error:", error instanceof Error ? error.message : String(error))
+      console.error("Export error:", error)
       toast({
-        title: "Export Failed",
-        description: "An error occurred while exporting the report",
+        title: language === "am" ? "ስህተት" : "Error",
+        description: language === "am" ? "ሪፖርቱን ማውረድ አልተቻለም" : "Failed to download report",
         variant: "destructive",
       })
     }
   }
 
+  if (isLoading) {
+    return (
+      <RoleProtected allowedRoles={["woreda_officer", "admin", "system_administrator", "super_admin", "healthcare_worker"]}>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </RoleProtected>
+    )
+  }
+
   return (
-    <RoleProtected allowedRoles={["woreda_officer", "admin"]}>
+    <RoleProtected allowedRoles={["woreda_officer", "admin", "system_administrator", "super_admin", "healthcare_worker"]}>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground">{t("reports.title", language)}</h1>
             <p className="text-muted-foreground">{t("reports.subtitle", language)}</p>
           </div>
-          <div className="flex gap-2">
-            <Button variant={showFilter ? "default" : "outline"} onClick={handleFilter}>
-              <Filter className="h-4 w-4 mr-2" />
-              {t("reports.filter", language)}
-            </Button>
-            <Button onClick={handleExport}>
-              <Download className="h-4 w-4 mr-2" />
-              {t("reports.exportReport", language)}
-            </Button>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button>
+                <Download className="h-4 w-4 mr-2" />
+                {t("reports.exportReport", language)}
+                <ChevronDown className="ml-2 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>{language === "am" ? "የሪፖርት አይነት" : "Report Type"}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+
+              <div className="p-2 text-xs font-semibold text-muted-foreground">
+                {language === "am" ? "የሽፋን ሪፖርት" : "Coverage Report"}
+              </div>
+              <DropdownMenuItem onClick={() => handleDownload("coverage", "csv")}>
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                <span>CSV</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleDownload("coverage", "pdf")}>
+                <FileText className="mr-2 h-4 w-4" />
+                <span>PDF</span>
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+              <div className="p-2 text-xs font-semibold text-muted-foreground">
+                {language === "am" ? "ያልተከተቡ ልጆች ማጠቃለያ" : "Overdue Summary"}
+              </div>
+              <DropdownMenuItem onClick={() => handleDownload("overdue_summary", "csv")}>
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                <span>CSV</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleDownload("overdue_summary", "pdf")}>
+                <FileText className="mr-2 h-4 w-4" />
+                <span>PDF</span>
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+              <div className="p-2 text-xs font-semibold text-muted-foreground">
+                {language === "am" ? "የተጠቃሚዎች ዝርዝር" : "User List"}
+              </div>
+              <DropdownMenuItem onClick={() => handleDownload("user_list", "csv")}>
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                <span>CSV</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleDownload("user_list", "pdf")}>
+                <FileText className="mr-2 h-4 w-4" />
+                <span>PDF</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
-        {showFilter && <ReportFilter onClose={() => setShowFilter(false)} onApplyFilter={handleApplyFilter} />}
-
-        {activeFilters && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
-            Active Filters: {activeFilters.dateRange} | {activeFilters.status}
-            {activeFilters.facility && ` | ${activeFilters.facility}`}
-          </div>
-        )}
 
         <CoverageReport />
 
         <div className="grid lg:grid-cols-2 gap-6">
-          <TrendAnalysis />
-          <DefaulterReport />
+          <TrendAnalysis data={analyticsData?.trends || []} />
+          <DefaulterReport data={analyticsData?.defaulters || []} />
         </div>
 
-        <GeographicReport />
+        <GeographicReport data={analyticsData?.geographic || []} />
       </div>
     </RoleProtected>
   )

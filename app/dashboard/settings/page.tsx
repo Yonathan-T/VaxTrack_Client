@@ -16,8 +16,9 @@ import { SystemTroubleshooting } from "@/components/admin/system-troubleshooting
 import { SystemUpdates } from "@/components/admin/system-updates"
 import { ParentSettings } from "@/components/dashboard/parent-settings"
 import { UserProfileSettings } from "@/components/dashboard/user-profile-settings"
+import { ChangePasswordSettings } from "@/components/dashboard/change-password-settings"
 
-type Tab = "overview" | "profile" | "notifications" | "backups" | "system" | "troubleshooting" | "updates"
+type Tab = "overview" | "profile" | "security" | "notifications" | "backups" | "system" | "troubleshooting" | "updates"
 
 export default function SettingsPage() {
   const { language } = useLanguage()
@@ -42,6 +43,11 @@ export default function SettingsPage() {
       id: "profile",
       label: language === "am" ? "መግለጫ" : "Profile",
       icon: UserIcon,
+    },
+    {
+      id: "security",
+      label: language === "am" ? "ደህንነት" : "Security",
+      icon: Lock,
     },
     {
       id: "notifications",
@@ -155,6 +161,7 @@ export default function SettingsPage() {
           )}
 
           {activeTab === "profile" && <UserProfileSettings />}
+          {activeTab === "security" && <ChangePasswordSettings />}
           {activeTab === "notifications" && <NotificationSettings />}
           {activeTab === "backups" && isSystemAdmin && <BackupManagement />}
           {activeTab === "system" && isSystemAdmin && <SystemSettings />}

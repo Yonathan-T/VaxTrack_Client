@@ -14,7 +14,7 @@ export function DashboardStats() {
     () => [
       {
         title: t("dashboard.stats.totalChildren", language),
-        value: 1247,
+        value: 0,
         change: t("dashboard.stats.totalChildrenChange", language),
         icon: Users,
         color: "text-primary",
@@ -22,7 +22,7 @@ export function DashboardStats() {
       },
       {
         title: t("dashboard.stats.vaccinationsToday", language),
-        value: 34,
+        value: 0,
         change: t("dashboard.stats.vaccinationsTodayChange", language),
         icon: Syringe,
         color: "text-green-600",
@@ -30,7 +30,7 @@ export function DashboardStats() {
       },
       {
         title: t("dashboard.stats.upcomingAppointments", language),
-        value: 156,
+        value: 0,
         change: t("dashboard.stats.upcomingAppointmentsChange", language),
         icon: Calendar,
         color: "text-purple-600",
@@ -38,7 +38,7 @@ export function DashboardStats() {
       },
       {
         title: t("dashboard.stats.missedVaccinations", language),
-        value: 23,
+        value: 0,
         change: t("dashboard.stats.missedVaccinationsChange", language),
         icon: AlertTriangle,
         color: "text-destructive",
@@ -63,10 +63,10 @@ export function DashboardStats() {
             )}
             style={{
               animationDelay: `${index * 100}ms`,
-              borderLeftColor: stat.color === "text-primary" ? "rgb(59 130 246)" : 
-                              stat.color === "text-purple-600" ? "rgb(168 85 247)" :
-                              stat.color === "text-green-600" ? "rgb(34 197 94)" :
-                              "rgb(239 68 68)",
+              borderLeftColor: stat.color === "text-primary" ? "rgb(59 130 246)" :
+                stat.color === "text-purple-600" ? "rgb(168 85 247)" :
+                  stat.color === "text-green-600" ? "rgb(34 197 94)" :
+                    "rgb(239 68 68)",
             }}
           >
             <div

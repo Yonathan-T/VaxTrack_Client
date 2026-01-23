@@ -8,6 +8,9 @@ export interface ChildProfile {
   sex: string;
   national_id?: string | null;
   address?: string;
+  kebele?: string;
+  woreda?: string;
+  house_number?: string;
   user_id?: number;
   registered_by?: number;
   facility_id?: number;
@@ -61,14 +64,14 @@ export interface Appointment {
   dateTime?: string;
   appointment_date?: string;
   status:
-    | "scheduled"
-    | "completed"
-    | "missed"
-    | "rescheduled"
-    | "confirmed"
-    | "pending"
-    | "cancelled"
-    | "checked-in";
+  | "scheduled"
+  | "completed"
+  | "missed"
+  | "rescheduled"
+  | "confirmed"
+  | "pending"
+  | "cancelled"
+  | "checked-in";
   appointmentType?: string;
   vaccine?: {
     id: number;

@@ -7,6 +7,7 @@ import { VaccinationsProvider } from "@/lib/vaccinations-context"
 import { InventoryProvider } from "@/lib/inventory-context"
 import { UserProvider } from "@/lib/user-context"
 import { ThemeProvider } from "@/lib/theme-context"
+import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
   title: "VaxTrack - Vaccination Tracking System",
@@ -33,6 +34,7 @@ export default function RootLayout({
             </UserProvider>
           </LanguageProvider>
         </ThemeProvider>
+        <Toaster />
       </body>
     </html>
   )

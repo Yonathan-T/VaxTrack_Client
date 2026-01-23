@@ -125,10 +125,10 @@ export function AdminDashboard({ language: initialLanguage }: RoleDashboardProps
         const issuesPreview =
           statusHasIssues
             ? (statusData as any).issues
-              .slice(0, 2)
-              .map((i: any) => i?.message || i?.service || "Issue detected")
-              .filter(Boolean)
-              .join(" • ")
+                .slice(0, 2)
+                .map((i: any) => i?.message || i?.service || "Issue detected")
+                .filter(Boolean)
+                .join(" • ")
             : ""
 
         const systemHealthDetail = systemHealthStatus === "Healthy"
@@ -276,7 +276,7 @@ export function AdminDashboard({ language: initialLanguage }: RoleDashboardProps
               <p className="text-xs text-muted-foreground">Database</p>
               <p className="text-base font-semibold mt-1">{isLoading ? "-" : (dbPayload?.database || "Database")}</p>
               <p className={cn("text-sm mt-1 font-medium", getStatusColor(isLoading ? undefined : dbPayload?.status || stats.systemHealthStatus))}>
-                {isLoading ? "Loading..." : renderStatusPill(dbPayload?.status || stats.systemHealthStatus, dbPayload?.status || stats.systemHealthStatus)}
+              {isLoading ? "Loading..." : renderStatusPill(dbPayload?.status || stats.systemHealthStatus, dbPayload?.status || stats.systemHealthStatus)}
               </p>
               <p className="text-xs text-muted-foreground mt-1">Host: {isLoading ? "-" : dbPayload?.host || "n/a"}</p>
             </div>
@@ -304,20 +304,29 @@ export function AdminDashboard({ language: initialLanguage }: RoleDashboardProps
           </div>
           <div
             className="p-4 border border-border rounded-lg hover:bg-muted cursor-pointer transition hover:shadow-md"
-            onClick={() => router.push("/dashboard/reports")}
-          >
-            <h4 className="font-medium text-foreground">{t("dashboard.nav.reports", language)}</h4>
-            <p className="text-sm text-muted-foreground mt-1">
-              {language === "am" ? "ሽፋን ሪፖርቶችን ይመልከቱ እና ውሳኔ ይውሰኑ" : "Open coverage and performance reports."}
-            </p>
-          </div>
-          <div
-            className="p-4 border border-border rounded-lg hover:bg-muted cursor-pointer transition hover:shadow-md"
             onClick={() => router.push("/dashboard/vaccinations")}
           >
             <h4 className="font-medium text-foreground">{t("dashboard.nav.vaccinations", language)}</h4>
             <p className="text-sm text-muted-foreground mt-1">
               {language === "am" ? "የክትባት እቅዶችን እና መመዝገቦችን ይከታተሉ" : "Track vaccination activity and performance."}
+            </p>
+          </div>
+          <div
+            className="p-4 border border-border rounded-lg hover:bg-muted cursor-pointer transition hover:shadow-md"
+            onClick={() => router.push("/dashboard/appointments")}
+          >
+            <h4 className="font-medium text-foreground">{t("dashboard.nav.appointments", language)}</h4>
+            <p className="text-sm text-muted-foreground mt-1">
+              {language === "am" ? "ቀጠሮዎችን ይመልከቱ እና ያስተዳድሩ" : "Review scheduled visits and upcoming demand."}
+            </p>
+          </div>
+          <div
+            className="p-4 border border-border rounded-lg hover:bg-muted cursor-pointer transition hover:shadow-md"
+            onClick={() => router.push("/dashboard/reports")}
+          >
+            <h4 className="font-medium text-foreground">{t("dashboard.nav.reports", language)}</h4>
+            <p className="text-sm text-muted-foreground mt-1">
+              {language === "am" ? "ሽፋን ሪፖርቶችን ይመልከቱ እና ውሳኔ ይውሰኑ" : "Open coverage and performance reports."}
             </p>
           </div>
         </div>

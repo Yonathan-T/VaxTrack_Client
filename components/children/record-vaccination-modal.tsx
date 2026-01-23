@@ -14,6 +14,7 @@ import { administerVaccine, getChildProfile } from "@/lib/healthcare-worker-api"
 import { useToast } from "@/hooks/use-toast"
 import { useInventory } from "@/lib/inventory-context"
 import { useUser } from "@/lib/user-context"
+import { useVaccinations } from "@/lib/vaccinations-context"
 import { Card } from "@/components/ui/card"
 import { Calendar, Syringe, Building2, AlertCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -179,6 +180,23 @@ export function RecordVaccinationModal({
         description: "Vaccination recorded successfully",
       })
 
+      // Sync with local context for immediate UI updates in reports
+      try {
+        const { addVaccination } = (useVaccinations as any)()
+        addVaccination({
+          childId: childId,
+          vaccine: formData.vaccineName,
+          date: formData.dateAdministered,
+          batchNumber: formData.batchNumber,
+          facility: childData?.facility?.name || "Clinic",
+          administeredBy: user?.name || user?.email || "Healthcare Worker",
+          status: "completed",
+          nextDue: "Scheduled", // Placeholder for reports
+        })
+      } catch (err) {
+        console.warn("[RecordVaccinationModal] Context sync skipped:", err)
+      }
+
       setIsSubmitting(false)
       onClose()
       // Refresh the page or trigger a refresh
@@ -329,7 +347,7 @@ export function RecordVaccinationModal({
             </p>
           </div>
 
-          
+
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="doseMl">Dose (mL) *</Label>
@@ -361,7 +379,7 @@ export function RecordVaccinationModal({
               </Select>
             </div>
           </div>
-<Card className="p-4 bg-muted/30">
+          <Card className="p-4 bg-muted/30">
             <div className="flex items-center gap-3">
               <Building2 className="h-5 w-5 text-muted-foreground" />
               <div className="flex-1">

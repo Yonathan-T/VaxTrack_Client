@@ -12,6 +12,7 @@ import { updateProfile } from "@/lib/parent-api"
 import { useToast } from "@/hooks/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ParentNotificationsList } from "@/components/notifications/parent-notifications-list"
+import { ChangePasswordSettings } from "./change-password-settings"
 
 export function ParentSettings() {
     const { language } = useLanguage()
@@ -76,6 +77,9 @@ export function ParentSettings() {
                     </TabsTrigger>
                     <TabsTrigger value="notifications">
                         {language === "am" ? "ማሳወቂያዎች" : "Notifications"}
+                    </TabsTrigger>
+                    <TabsTrigger value="security">
+                        {language === "am" ? "ደህንነት" : "Security"}
                     </TabsTrigger>
                 </TabsList>
 
@@ -157,6 +161,10 @@ export function ParentSettings() {
 
                 <TabsContent value="notifications" className="mt-6">
                     <ParentNotificationsList />
+                </TabsContent>
+
+                <TabsContent value="security" className="mt-6">
+                    <ChangePasswordSettings />
                 </TabsContent>
             </Tabs>
         </div>
