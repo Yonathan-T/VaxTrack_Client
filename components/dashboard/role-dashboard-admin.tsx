@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
-import { Activity, ShieldCheck, Users, Baby, Syringe } from "lucide-react"
-import { getAdminDbCheck, getAdminSystemStatus, getAllChildrenForAdmin, getUsers } from "@/lib/admin-api"
+import { Activity, ShieldCheck, Users, Baby, Syringe, Package, ArrowUpRight } from "lucide-react"
+import { getAdminDbCheck, getAdminSystemStatus, getAllChildrenForAdmin, getUsers, getAnalyticsReport } from "@/lib/admin-api"
+import { Skeleton } from "@/components/ui/skeleton"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
 import { useLanguage } from "@/lib/language-context"
 import { t } from "@/lib/translations"
 import { useUser } from "@/lib/user-context"
@@ -31,6 +34,7 @@ export function AdminDashboard({ language: initialLanguage }: RoleDashboardProps
   const [statusPayload, setStatusPayload] = useState<any>(null)
   const [statusLatencyMs, setStatusLatencyMs] = useState<number | null>(null)
   const [showStatusPayload, setShowStatusPayload] = useState(false)
+  const [analytics, setAnalytics] = useState<any>(null)
 
   const getStatusColor = (status?: string) => {
     if (!status) return "text-muted-foreground"
@@ -61,11 +65,14 @@ export function AdminDashboard({ language: initialLanguage }: RoleDashboardProps
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const [usersRes, childrenRes, dbRes] = await Promise.all([
+        const [usersRes, childrenRes, dbRes, analyticsRes] = await Promise.all([
           getUsers(),
           getAllChildrenForAdmin(),
           getAdminDbCheck(),
+          getAnalyticsReport(),
         ])
+
+        if (analyticsRes.data) setAnalytics(analyticsRes.data)
 
         // Measure /v1/admin/status latency separately
         const start = typeof performance !== "undefined" ? performance.now() : Date.now()
@@ -125,10 +132,10 @@ export function AdminDashboard({ language: initialLanguage }: RoleDashboardProps
         const issuesPreview =
           statusHasIssues
             ? (statusData as any).issues
-                .slice(0, 2)
-                .map((i: any) => i?.message || i?.service || "Issue detected")
-                .filter(Boolean)
-                .join(" • ")
+              .slice(0, 2)
+              .map((i: any) => i?.message || i?.service || "Issue detected")
+              .filter(Boolean)
+              .join(" • ")
             : ""
 
         const systemHealthDetail = systemHealthStatus === "Healthy"
@@ -189,9 +196,9 @@ export function AdminDashboard({ language: initialLanguage }: RoleDashboardProps
             isInteractive: true,
           },
           {
-            title: "Children registered this week",
-            value: stats.childrenRegisteredThisWeek,
-            change: "New child records in the last 7 days",
+            title: "Total Children",
+            value: isLoading ? 0 : childrenArray.length,
+            change: "All registered records",
             icon: Baby,
             color: "text-purple-600",
             bgGradient: "from-purple-500/10 to-purple-600/5",
@@ -276,7 +283,7 @@ export function AdminDashboard({ language: initialLanguage }: RoleDashboardProps
               <p className="text-xs text-muted-foreground">Database</p>
               <p className="text-base font-semibold mt-1">{isLoading ? "-" : (dbPayload?.database || "Database")}</p>
               <p className={cn("text-sm mt-1 font-medium", getStatusColor(isLoading ? undefined : dbPayload?.status || stats.systemHealthStatus))}>
-              {isLoading ? "Loading..." : renderStatusPill(dbPayload?.status || stats.systemHealthStatus, dbPayload?.status || stats.systemHealthStatus)}
+                {isLoading ? "Loading..." : renderStatusPill(dbPayload?.status || stats.systemHealthStatus, dbPayload?.status || stats.systemHealthStatus)}
               </p>
               <p className="text-xs text-muted-foreground mt-1">Host: {isLoading ? "-" : dbPayload?.host || "n/a"}</p>
             </div>

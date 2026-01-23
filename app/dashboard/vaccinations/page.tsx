@@ -14,7 +14,7 @@ export default function VaccinationsPage() {
   const { language } = useLanguage()
   const { user } = useUser()
 
-  const canRecord = user?.role === "healthcare_worker" || user?.role === "admin" || user?.role === "system_administrator" || user?.role === "super_admin"
+  const canRecord = user?.role === "healthcare_worker" || user?.role === "system_administrator" || user?.role === "super_admin"
 
   return (
     <RoleProtected allowedRoles={["healthcare_worker", "woreda_officer", "admin", "system_administrator", "super_admin", "parent"]}>

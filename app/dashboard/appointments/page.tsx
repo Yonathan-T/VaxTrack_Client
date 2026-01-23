@@ -20,7 +20,7 @@ export default function AppointmentsPage() {
   const canSchedule = user?.role === "healthcare_worker" || user?.role === "admin" || user?.role === "system_administrator" || user?.role === "super_admin"
 
   return (
-    <RoleProtected allowedRoles={["healthcare_worker", "woreda_officer", "admin", "system_administrator", "super_admin"]}>
+    <RoleProtected allowedRoles={["healthcare_worker", "woreda_officer", "admin", "system_administrator", "super_admin", "health_official"]}>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>

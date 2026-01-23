@@ -55,6 +55,17 @@ export interface CoverageReport {
   }>
 }
 
+export interface ReportStats {
+  total_children: number
+  total_parents: number
+  total_vaccines_given: number
+  total_overdue: number
+}
+
+export async function getReportStats() {
+  return apiClient.get<ReportStats>("/v1/reports/stats")
+}
+
 export async function getUsers() {
   return apiClient.get<{ users: User[] }>("/v1/admin/users")
 }

@@ -83,7 +83,7 @@ export default function SettingsPage() {
   const visibleTabs = tabs.filter((tab) => !tab.systemAdminOnly || isSystemAdmin)
 
   return (
-    <RoleProtected allowedRoles={["admin", "system_administrator", "super_admin"]}>
+    <RoleProtected allowedRoles={["admin", "system_administrator", "super_admin", "health_official", "woreda_officer", "healthcare_worker"]}>
       <div className="space-y-6">
         {/* Header */}
         <div>

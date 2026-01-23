@@ -33,10 +33,14 @@ export function ChildrenList() {
       const response = await getChildrenList(searchQuery || undefined)
 
       if (response.error) {
-        console.error("[ChildrenList] Error fetching children:", response.error)
+        console.error("[ChildrenList] Fetch failed:", {
+          status: response.status,
+          message: response.error.message,
+          fullError: response.error
+        })
         toast({
-          title: "Error",
-          description: response.error.message || "Failed to load children",
+          title: language === "am" ? "ስህተት" : "Error",
+          description: response.error.message || (language === "am" ? "ልጆችን መጫን አልተቻለም" : "Failed to load children"),
           variant: "destructive",
         })
         setChildren([])
@@ -225,10 +229,10 @@ export function ChildrenList() {
                   const fullName = `${child.first_name} ${child.last_name}`.trim()
                   const dob = child.date_of_birth
                     ? new Date(child.date_of_birth).toLocaleDateString("en-US", {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                      })
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })
                     : "-"
 
                   return (

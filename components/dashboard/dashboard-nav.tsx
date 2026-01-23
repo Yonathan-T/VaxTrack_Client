@@ -43,10 +43,19 @@ export function DashboardNav() {
         { title: t("dashboard.nav.children", language), href: "/dashboard/children", icon: Users },
         { title: t("dashboard.nav.appointments", language), href: "/dashboard/appointments", icon: Calendar },
         { title: t("dashboard.nav.inventory", language), href: "/dashboard/inventory", icon: Package },
+        { title: t("dashboard.nav.inventoryLogs", language), href: "/dashboard/inventory-logs", icon: History },
+        { title: t("dashboard.nav.campaigns", language), href: "/dashboard/campaigns", icon: Syringe },
+        { title: t("dashboard.nav.settings", language), href: "/dashboard/settings", icon: Settings },
       ],
       woreda_officer: [
-        { title: t("dashboard.nav.children", language), href: "/dashboard/children", icon: Users },
         { title: t("dashboard.nav.reports", language), href: "/dashboard/reports", icon: BarChart3 },
+      ],
+      health_official: [
+        { title: t("dashboard.nav.reports", language), href: "/dashboard/reports", icon: BarChart3 },
+        { title: t("dashboard.nav.inventory", language), href: "/dashboard/inventory", icon: Package },
+        { title: t("dashboard.nav.inventoryLogs", language), href: "/dashboard/inventory-logs", icon: History },
+        { title: t("dashboard.nav.campaigns", language), href: "/dashboard/campaigns", icon: Syringe },
+        { title: t("dashboard.nav.settings", language), href: "/dashboard/settings", icon: Settings },
       ],
       admin: (() => {
         const isSuperAdmin = user?.role === "admin" && (user as any)?.facility_id == null

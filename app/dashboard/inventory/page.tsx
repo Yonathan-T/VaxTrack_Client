@@ -278,7 +278,7 @@ export default function InventoryPage() {
   const canAddStock = user?.role === "health_official" || user?.role === "admin" || user?.role === "system_administrator" || user?.role === "super_admin" || user?.role === "healthcare_worker"
 
   return (
-    <RoleProtected allowedRoles={["admin", "healthcare_worker", "system_administrator", "super_admin", "health_official"]}>
+    <RoleProtected allowedRoles={["admin", "healthcare_worker", "system_administrator", "super_admin", "health_official", "woreda_officer"]}>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>

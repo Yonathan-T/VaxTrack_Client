@@ -127,7 +127,7 @@ export default function ReportsPage() {
 
   if (isLoading) {
     return (
-      <RoleProtected allowedRoles={["woreda_officer", "admin", "system_administrator", "super_admin", "healthcare_worker"]}>
+      <RoleProtected allowedRoles={["woreda_officer", "admin", "system_administrator", "super_admin", "healthcare_worker", "health_official"]}>
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
@@ -136,7 +136,7 @@ export default function ReportsPage() {
   }
 
   return (
-    <RoleProtected allowedRoles={["woreda_officer", "admin", "system_administrator", "super_admin", "healthcare_worker"]}>
+    <RoleProtected allowedRoles={["woreda_officer", "admin", "system_administrator", "super_admin", "healthcare_worker", "health_official"]}>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>

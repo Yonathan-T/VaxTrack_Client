@@ -292,7 +292,7 @@ function InventoryLogsContent() {
 
 export default function InventoryLogsPage() {
   return (
-    <RoleProtected allowedRoles={["admin", "system_administrator", "super_admin", "healthcare_worker"]}>
+    <RoleProtected allowedRoles={["admin", "system_administrator", "super_admin", "healthcare_worker", "health_official", "woreda_officer"]}>
       <InventoryLogsContent />
     </RoleProtected>
   )

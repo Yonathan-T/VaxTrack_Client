@@ -110,6 +110,7 @@ export const translations = {
     "dashboard.nav.reports": "Insights",
     "dashboard.nav.inventory": "Inventory",
     "dashboard.nav.inventoryLogs": "Inventory Logs",
+    "dashboard.nav.campaigns": "Campaigns",
     "dashboard.nav.settings": "Settings",
     "dashboard.nav.notifications": "Notifications",
 
@@ -643,6 +644,7 @@ export const translations = {
     "dashboard.nav.reports": "ግንዛቤዎች",
     "dashboard.nav.inventory": "ሸታ",
     "dashboard.nav.inventoryLogs": "ሸታ ማህደር",
+    "dashboard.nav.campaigns": "ዘመቻዎች",
     "dashboard.nav.settings": "ቅንብሮች",
     "dashboard.nav.notifications": "ማስታወቂያዎች",
     "reports.title": "ግንዛቤዎች እና ትንታኔዎች",

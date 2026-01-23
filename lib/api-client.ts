@@ -89,9 +89,24 @@ class ApiClient {
       }
 
       if (!response.ok) {
+        let message = `HTTP ${status}`
+
+        if (responseData) {
+          if (typeof responseData.message === 'string') {
+            message = responseData.message
+          } else if (typeof responseData.error === 'string') {
+            message = responseData.error
+          } else if (typeof responseData.message === 'object') {
+            message = JSON.stringify(responseData.message)
+          } else if (typeof responseData.error === 'object') {
+            message = JSON.stringify(responseData.error)
+          } else if (responseData.errors) {
+            message = JSON.stringify(responseData.errors)
+          }
+        }
+
         const error: ApiError = {
-          // VaxTrack returns error in "message" or "error" field
-          message: responseData?.message || responseData?.error || `HTTP ${status}`,
+          message,
           status,
           code: responseData?.code,
         }

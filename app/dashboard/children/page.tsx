@@ -13,10 +13,10 @@ export default function ChildrenPage() {
   const { language } = useLanguage()
   const { user } = useUser()
 
-  const canRegister = user?.role === "healthcare_worker" || user?.role === "admin"
+  const canRegister = user?.role === "healthcare_worker" || user?.role === "system_administrator" || user?.role === "super_admin"
 
   return (
-    <RoleProtected allowedRoles={["healthcare_worker", "woreda_officer", "admin", "system_administrator", "super_admin", "parent"]}>
+    <RoleProtected allowedRoles={["healthcare_worker", "woreda_officer", "admin", "system_administrator", "health_official", "super_admin", "parent"]}>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>

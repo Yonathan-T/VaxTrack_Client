@@ -22,6 +22,7 @@ export default function DashboardPage() {
       case "healthcare_worker":
         return <HealthWorkerDashboard language={language} />
       case "health_official":
+      case "woreda_officer":
         return <WoaredaDashboard language={language} />
       case "admin":
         return <AdminDashboard language={language} />

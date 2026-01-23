@@ -2,6 +2,11 @@
 
 # dependencies
 /node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
 
 # next.js
 /.next/
@@ -9,6 +14,10 @@
 
 # production
 /build
+
+# misc
+.DS_Store
+*.pem
 
 # debug
 npm-debug.log*
@@ -19,8 +28,6 @@ yarn-error.log*
 # env files
 .env*
 !.env.local.example
-!*.md
-!*.docx
 
 # vercel
 .vercel
@@ -28,3 +35,29 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Logs
+logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Markdown files (as requested)
+*.md
+*.docx
