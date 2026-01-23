@@ -25,7 +25,7 @@ export function VaccinationStats() {
         const [todayDueRes, childrenRes, appointmentsRes] = await Promise.all([
           getTodayDue(),
           getChildrenList(),
-          getAppointmentsList(),
+          getAppointmentsList({ all: true }),
         ])
 
         let todaysVaccinations = 0
@@ -36,7 +36,7 @@ export function VaccinationStats() {
           const data = todayDueRes.data as any
           const todayDueChildren = data.data || []
           todaysVaccinations = todayDueChildren.length
-          
+
           todayDueChildren.forEach((child: any) => {
             overdueCount += child.overdue_count || 0
             pendingCount += (child.total_pending || 0) - (child.overdue_count || 0)
@@ -141,10 +141,10 @@ export function VaccinationStats() {
             )}
             style={{
               animationDelay: `${index * 100}ms`,
-              borderLeftColor: stat.color === "text-primary" ? "rgb(59 130 246)" : 
-                              stat.color === "text-purple-600" ? "rgb(168 85 247)" :
-                              stat.color === "text-green-600" ? "rgb(34 197 94)" :
-                              "rgb(239 68 68)",
+              borderLeftColor: stat.color === "text-primary" ? "rgb(59 130 246)" :
+                stat.color === "text-purple-600" ? "rgb(168 85 247)" :
+                  stat.color === "text-green-600" ? "rgb(34 197 94)" :
+                    "rgb(239 68 68)",
             }}
           >
             <div

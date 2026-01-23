@@ -25,6 +25,7 @@ export function AdminDashboard({ language: initialLanguage }: RoleDashboardProps
     totalUsers: 0,
     systemHealthStatus: "Unknown" as "Healthy" | "Degraded" | "Unknown",
     systemHealthDetail: "" as string,
+    totalChildren: 0,
     childrenRegisteredThisWeek: 0,
     vaccinationsGivenThisWeek: 0,
   })
@@ -146,6 +147,7 @@ export function AdminDashboard({ language: initialLanguage }: RoleDashboardProps
           totalUsers: userCount,
           systemHealthStatus,
           systemHealthDetail,
+          totalChildren: childrenArray.length,
           childrenRegisteredThisWeek: childrenThisWeek,
           vaccinationsGivenThisWeek: vaccinationsThisWeek,
         })
@@ -197,7 +199,7 @@ export function AdminDashboard({ language: initialLanguage }: RoleDashboardProps
           },
           {
             title: "Total Children",
-            value: isLoading ? 0 : childrenArray.length,
+            value: stats.totalChildren,
             change: "All registered records",
             icon: Baby,
             color: "text-purple-600",
@@ -296,6 +298,7 @@ export function AdminDashboard({ language: initialLanguage }: RoleDashboardProps
           </div>
         </Card>
       )}
+
 
       <Card className="p-6">
         <h3 className="text-lg font-semibold text-foreground mb-4">{t("dashboard.quickActions", language)}</h3>

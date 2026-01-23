@@ -43,8 +43,19 @@ export default function ReportsPage() {
           getAnalyticsReport(),
         ])
 
-        const usersCount = (usersRes.data as any)?.users?.length || (usersRes.data as any)?.data?.length || 0
-        const childrenCount = (childrenRes.data as any)?.children?.length || (childrenRes.data as any)?.data?.length || 0
+        const payload: any = usersRes.data
+        const usersCount =
+          (Array.isArray(payload) && payload.length) ||
+          (Array.isArray(payload?.users) && payload.users.length) ||
+          (Array.isArray(payload?.data) && payload.data.length) ||
+          0
+
+        const cPayload: any = childrenRes.data
+        const childrenCount =
+          (Array.isArray(cPayload) && cPayload.length) ||
+          (Array.isArray(cPayload?.children) && cPayload.children.length) ||
+          (Array.isArray(cPayload?.data) && cPayload.data.length) ||
+          0
 
         // Estimate total vaccinations from trends if available, else 0
         const trends = (analyticsRes.data as any)?.trends || []

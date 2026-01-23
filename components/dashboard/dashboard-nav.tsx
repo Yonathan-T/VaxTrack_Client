@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { LayoutDashboard, Users, Syringe, Calendar, BarChart3, Package, Settings, LogOut, Bell, User, History } from "lucide-react"
+import { LayoutDashboard, Users, Syringe, Calendar, BarChart3, Package, Settings, LogOut, Bell, User, History, Building } from "lucide-react"
 import { useLanguage } from "@/lib/language-context"
 import { useUser } from "@/lib/user-context"
 import { t } from "@/lib/translations"
@@ -64,11 +64,12 @@ export function DashboardNav() {
         // Common admin features
         items.push({ title: t("dashboard.nav.children", language), href: "/dashboard/children", icon: Users })
         // Users should appear right below Children
-        items.push({ title: "Users", href: "/dashboard/users", icon: Users })
+        items.push({ title: t("dashboard.nav.users", language), href: "/dashboard/users", icon: Users })
         // Then the rest
         items.push({ title: t("dashboard.nav.appointments", language), href: "/dashboard/appointments", icon: Calendar })
         // Super admin specific: Global Reports
         if (isSuperAdmin) {
+          items.push({ title: t("dashboard.nav.facilities", language), href: "/dashboard/facilities", icon: Building })
           items.push({ title: t("dashboard.nav.reports", language), href: "/dashboard/reports", icon: BarChart3 })
           items.push({ title: t("dashboard.nav.inventory", language), href: "/dashboard/inventory", icon: Package })
           items.push({ title: t("dashboard.nav.inventoryLogs", language), href: "/dashboard/inventory-logs", icon: History })

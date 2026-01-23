@@ -1,114 +1,89 @@
-# reports
-i have this in my back end
+# Appointments API Guide
 
-Route::middleware('role:admin|health_official')->prefix('reports')->group(function () {
-         Route::get('/coverage', [AdminController::class, 'vaccineCoverageReport']);
-         Route::get('/download/{reportType}', [AdminController::class, 'downloadReport']);
-         Route::get('/stats', [AdminController::class, 'stats']);
-    });
-# and for stats 
-GET v1/reports/stats
+## Overview
+
+All appointments endpoints are under the protected v1 group (`auth:sanctum`), so they always require a Bearer token.
+
+## 1. List Appointments
+
+**Endpoint:** `GET /api/v1/appointments`
+
+**Who can call it:** Any authenticated user (no role restriction)
+
+**What it does:**
+Returns appointments for the current user's facility (if facility_id is set), or all facilities if the user is a super admin (facility_id is null).
+Defaults to today's appointments; can filter by date and status.
+
+**Optional query params:**
+
+- `date` (defaults to today, format YYYY-MM-DD)
+- `status` (e.g., pending, completed, etc.)
+
+**Response:**
+success, date, count, data (list of appointments with child.parent and vaccinationRecords.vaccine relations loaded)
+
+## 2. Show a Single Appointment
+
+**Endpoint:** `GET /api/v1/appointments/{appointmentId}`
+
+**Who can call it:** Any authenticated user
+
+**What it does:**
+Returns a single appointment with child.parent and vaccinationRecords.vaccine loaded.
+
+## 3. Reschedule/Update an Appointment
+
+**Endpoint:** `PUT /api/v1/appointments/{appointmentId}`
+
+**Who can call it:** Any authenticated user
+
+**What it does:**
+
+- Updates scheduled_at and optional notes.
+- Capacity check: if the facility has a daily_capacity, it ensures the new date isn't already full.
+- Also updates scheduled_date for all linked vaccination_records to the new date.
+
+**Payload:**
+
+```json
 {
-    "success": true,
-    "data": {
-        "total_children": 0,
-        "total_parents": 0,
-        "total_nurses": 1,
-        "total_health_officials": 0,
-        "total_vaccines_given": 0,
-        "total_overdue": 0,
-        "coverage_bcg": 0,
-        "coverage_measles1": 0
-    }
+  "scheduled_at": "2026-02-05T10:00:00",
+  "notes": "Rescheduled due to conflict"
 }
-# the download,  this is the method
 ```
- public function downloadReport(Request $request, $reportType)
-    {
-        $format = $request->query('format', 'csv');
-        $columns = [];
-        $data = [];
-        $title = 'Report';
-        $summary = '';
 
-        $facilityId = auth()->user()->facility_id;
+**Error response (capacity):**
+422 with message and available_capacity: 0 if full.
 
-        if ($reportType === 'coverage') {
-            $data = $this->generateCoverageReportData($columns, $facilityId); 
-            $title = 'Vaccine Coverage Report';
-            $summary = 'This report shows the vaccination coverage percentage for each vaccine.';
-        } elseif ($reportType === 'overdue_summary') {
-            $data = $this->generateOverdueSummaryData($columns, $facilityId);
-            $title = 'Overdue Vaccinations Summary';
-            $summary = 'This report lists children with overdue vaccinations.';
-        } elseif ($reportType === 'user_list') {
-            $data = $this->generateUserData($columns, $facilityId);
-            $title = 'System Users List';
-        } else {
-            return response()->json(['error' => 'Invalid report type'], 400);
-        }
+## 4. Check Facility Capacity
 
-        if ($format === 'pdf') {
-            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reports.generic', [
-                'title' => $title,
-                'summary' => $summary,
-                'columns' => $columns,
-                'data' => $data
-            ]);
-            
-            $filename = "report_{$reportType}_" . now()->format('Ymd_His') . ".pdf";
-            return $pdf->download($filename);
-        }
+**Endpoint:** `GET /api/v1/facilities/{facilityId}/capacity`
 
-        // CSV (Default)
-        $filename = "report_{$reportType}_" . now()->format('Ymd_His') . ".csv";
-        $headers = [
-            "Content-type"          => "text/csv",
-            "Content-Disposition"   => "attachment; filename={$filename}",
-            "Pragma"                => "no-cache",
-            "Cache-Control"         => "must-revalidate, post-check=0, pre-check=0",
-            "Expires"               => "0"
-        ];
+**Who can call it:** Any authenticated user
 
-        $callback = function() use ($data, $columns) {
-            $file = fopen('php://output', 'w');
-            fputcsv($file, $columns); 
+**What it does:**
+Returns how many slots are left for a given facility on a given date.
 
-            foreach ($data as $row) {
-                fputcsv($file, $row);
-            }
-            fclose($file);
-        };
+**Optional query:**
 
-        return response()->stream($callback, 200, $headers);
-    }
-    ```
+- `date` (defaults to today)
 
-# for vaccine coverage we got this
+**Response:**
+
+```json
+{
+  "success": true,
+  "facility": "Lideta Health Center",
+  "date": "2026-01-23",
+  "total_capacity": 50,
+  "booked": 12,
+  "remaining_slots": 38,
+  "is_full": false
+}
 ```
-public function vaccineCoverageReport()
-    {
-        $vaccines = \App\Models\Vaccine::all();
-        $report = [];
-        $facilityId = auth()->user()->facility_id;
-        $totalChildren = Child::query()->when($facilityId, fn($q) => $q->where('facility_id', $facilityId))->count();
 
-        if ($totalChildren > 0) {
-            foreach ($vaccines as $vaccine) {
-                $given = VaccinationRecord::where('vaccine_id', $vaccine->id)
-                    ->where('status', 'completed')
-                    ->whereHas('child', function($q) use ($facilityId) {
-                        $q->when($facilityId, fn($sub) => $sub->where('facility_id', $facilityId));
-                    })
-                    ->count();
-                
-                $report[] = [
-                    'vaccine' => $vaccine->name,
-                    'code' => $vaccine->code,
-                    'total_given' => $given,
-                    'coverage_percentage' => round(($given / $totalChildren) * 100, 1)
-                ];
-            }
-        }
-        ```
-    
+## Notes for Frontend
+
+- **No role restrictions** on these endpoints (just auth), so any logged-in user can list/view/update appointments.
+- **Facility scoping:** If the user has a facility_id, results are scoped to that facility automatically.
+- **Capacity enforcement:** Only enforced on PUT (reschedule) and via the checkCapacity helper.

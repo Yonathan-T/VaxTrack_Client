@@ -6,6 +6,21 @@ export const translations = {
     "nav.logout": "Log out",
     "nav.settings": "Settings",
 
+    // Common
+    "common.error": "Error",
+    "common.view": "View",
+    "common.cancel": "Cancel",
+    "common.noData": "No data available",
+    "common.processing": "Processing...",
+    "common.success": "Success",
+    "common.save": "Save",
+    "common.delete": "Delete",
+    "common.edit": "Edit",
+    "common.loading": "Loading...",
+    "common.confirm": "Confirm",
+    "common.back": "Back",
+    "common.next": "Next",
+
     // Home Page
     "home.title": "Vaccination Tracking for Healthier Children",
     "home.subtitle":
@@ -113,6 +128,8 @@ export const translations = {
     "dashboard.nav.campaigns": "Campaigns",
     "dashboard.nav.settings": "Settings",
     "dashboard.nav.notifications": "Notifications",
+    "dashboard.nav.facilities": "Facilities",
+    "dashboard.nav.users": "Users",
 
     // Dashboard Header
     "dashboard.header.vaxtrack": "VaxTrack",
@@ -202,6 +219,13 @@ export const translations = {
     "appointments.title": "Appointment Management",
     "appointments.subtitle": "Schedule and manage vaccination appointments",
     "appointments.scheduleAppointment": "Schedule Appointment",
+    "appointments.rescheduled": "Appointment Rescheduled",
+    "appointments.cancelled": "Appointment Cancelled",
+    "appointments.viewDetails": "View full appointment information",
+    "appointments.rescheduleFor": "Reschedule appointment for",
+    "appointments.newDate": "New Date",
+    "appointments.newTime": "New Time",
+    "appointments.cancelConfirm": "Are you sure you want to cancel the appointment for",
     "appointments.stats.todaysAppointments": "Today's Appointments",
     "appointments.stats.completed": "completed",
     "appointments.stats.thisWeek": "This Week",
@@ -546,6 +570,21 @@ export const translations = {
     "nav.logout": "ውጣ",
     "nav.settings": "ቅንብሮች",
 
+    // Common
+    "common.error": "ስህተት",
+    "common.view": "ተመልከት",
+    "common.cancel": "ሰርዝ",
+    "common.noData": "ምንም መረጃ የለም",
+    "common.processing": "በማቀነባበር ላይ...",
+    "common.success": "ተሳክቷል",
+    "common.save": "አስቀምጥ",
+    "common.delete": "ሰርዝ",
+    "common.edit": "አስተካክል",
+    "common.loading": "በመጫን ላይ...",
+    "common.confirm": "አረጋግጥ",
+    "common.back": "ተመለስ",
+    "common.next": "ቀጣይ",
+
     // Home Page
     "home.title": "ለጤናማ ልጆች ዲጂታል ክትባት ክትትል",
     "home.subtitle": "የክትባት ሂደቶችን ቀላል ያድርጉ፣ የክትባት ሽፋን ይሻሻሉ፣ እና በአዲስ ከተማ ውስጥ ያለ ሁሉ ልጅ ወቅታዊ ክትባቶችን ይቀበል።",
@@ -815,6 +854,20 @@ export const translations = {
     "appointments.noAppointments": "ምንም ስብሰባዎች አልተገኙም",
     "appointments.calling": "በመጥሪያ ላይ",
     "appointments.checkedIn": "ገብዋል",
+    "appointments.rescheduled": "ቀጠሮ ተቀይሯል",
+    "appointments.cancelled": "ቀጠሮ ተሰርዟል",
+    "appointments.viewDetails": "ሙሉ የቀጠሮ መረጃ ይመልከቱ",
+    "appointments.rescheduleFor": "ቀጠሮ ቀይር ለ",
+    "appointments.newDate": "አዲስ ቀን",
+    "appointments.newTime": "አዲስ ሰዓት",
+    "appointments.cancelConfirm": "ቀጠሮውን ለመሰረዝ እርግጠኛ ነዎት ለ",
+    "appointments.date": "ቀን",
+    "appointments.notes": "ማስታወሻዎች",
+    "appointments.details": "የቀጠሮ ዝርዝሮች",
+    "appointments.facility": "ተቋም",
+    "appointments.reschedule": "ቀጠሮ ቀይር",
+    "appointments.cancel": "ቀጠሮ ሰርዝ",
+    "appointments.newAppointments": "አዳዲስ ቀጠሮዎች",
 
     // Inventory Page
     "inventory.title": "ክትባት ሸታ",
@@ -1069,6 +1122,8 @@ export const translations = {
     "epi.note3": "ሁሉም ክትባቶች በተለያዩ የሰውነት ክፍሎች ላይ በአንድ ጊዜ ሊሰጡ ይችላሉ",
     "epi.note4": "ለሁሉም ክትባቶች የቀዝቃዛ ሰንሰለት መስፈርቶችን ይጠብቁ",
     "epi.note5": "ሁሉንም ክትባቶች ከባች ቁጥሮች እና ማለፊያ ቀናት ጋር ይመዝግቡ",
+    "dashboard.nav.facilities": "ተቋማት",
+    "dashboard.nav.users": "ተጠቃሚዎች",
   },
 }
 

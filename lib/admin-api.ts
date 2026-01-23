@@ -17,13 +17,16 @@ export interface User {
 }
 
 export interface Facility {
-  id: string
+  id: string | number
   name: string
-  region: string
-  district: string
   location: string
-  capacity: number
-  staff: number
+  address?: string
+  woreda?: string | null
+  daily_capacity: number
+  users_count?: number
+  registration_code?: string
+  created_at?: string
+  updated_at?: string
 }
 
 export interface VaccineDefinition {
@@ -40,6 +43,7 @@ export interface CoverageReportItem {
   code: string
   total_given: number
   coverage_percentage: number
+  total_children?: number
 }
 
 export interface CoverageReport {
@@ -77,6 +81,7 @@ export async function deleteUser(userId: string) {
 export async function createUser(data: {
   email: string
   name: string
+  password: string
   role: string
   phone?: string
   facility_id?: string | number | null

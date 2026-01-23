@@ -7,9 +7,9 @@ import { useLanguage } from "@/lib/language-context"
 import { t } from "@/lib/translations"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
-import { 
-  getAppointmentsList, 
-  getChildProfile, 
+import {
+  getAppointmentsList,
+  getChildProfile,
   getAppointmentDetails,
   updateAppointment,
   cancelAppointment,
@@ -46,8 +46,11 @@ interface Appointment {
   guardianName?: string
   phone?: string
   guardianPhone?: string
-  status?: "scheduled" | "completed" | "missed" | "rescheduled" | "confirmed" | "pending" | "checked-in"
+  status?: "scheduled" | "completed" | "missed" | "rescheduled" | "confirmed" | "pending" | "checked-in" | "cancelled"
   dateTime?: string
+  scheduled_date?: string
+  scheduled_at?: string
+  appointment_date?: string
 }
 
 interface AppointmentsListProps {
@@ -81,7 +84,17 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
         setIsLoading(true)
       }
 
-      const response = await getAppointmentsList()
+      const params: any = {}
+      if (searchQuery) params.search = searchQuery
+      if (selectedDate) {
+        // Format date to local YYYY-MM-DD to match the API expectation
+        const year = selectedDate.getFullYear()
+        const month = String(selectedDate.getMonth() + 1).padStart(2, '0')
+        const day = String(selectedDate.getDate()).padStart(2, '0')
+        params.date = `${year}-${month}-${day}`
+      }
+
+      const response = await getAppointmentsList(params)
 
       if (response.error) {
         console.log("[v0] Error fetching appointments:", response.error)
@@ -92,13 +105,13 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
       if (response.data) {
         // Handle API response structure
         const appointmentsData = response.data as any
-        const appointmentsArray = Array.isArray(appointmentsData?.data) 
-          ? appointmentsData.data 
+        const appointmentsArray = Array.isArray(appointmentsData?.data)
+          ? appointmentsData.data
           : Array.isArray(appointmentsData?.appointments)
-          ? appointmentsData.appointments
-          : Array.isArray(appointmentsData)
-          ? appointmentsData
-          : []
+            ? appointmentsData.appointments
+            : Array.isArray(appointmentsData)
+              ? appointmentsData
+              : []
 
         console.log("[AppointmentsList] Fetched appointments:", appointmentsArray.length)
 
@@ -107,12 +120,12 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
           appointmentsArray.map(async (apt: any) => {
             try {
               const childId = apt.child_id || apt.childId || apt.child?.id
-              const scheduledDate = apt.scheduled_date || apt.appointment_date || apt.dateTime
-              
+              const scheduledDate = apt.scheduled_at || apt.scheduled_date || apt.appointment_date || apt.dateTime
+
               let childName = apt.child?.first_name && apt.child?.last_name
                 ? `${apt.child.first_name} ${apt.child.last_name}`
                 : apt.childName || "-"
-              
+
               let guardianName = apt.child?.parent?.name || "-"
               let phone = apt.child?.parent?.phone || "-"
 
@@ -133,7 +146,14 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
                 }
               }
 
-              const vaccineName = apt.vaccine?.name || apt.appointmentType || "-"
+              let vaccineName = apt.vaccine?.name || apt.appointmentType
+
+              if (!vaccineName && Array.isArray(apt.vaccination_records) && apt.vaccination_records.length > 0) {
+                vaccineName = apt.vaccination_records.map((r: any) => r.vaccine?.name).filter(Boolean).join(", ")
+              }
+
+              if (!vaccineName) vaccineName = "-"
+
               const appointmentDate = scheduledDate ? new Date(scheduledDate) : null
 
               return {
@@ -148,10 +168,10 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
                 dateTime: scheduledDate,
                 time: appointmentDate
                   ? appointmentDate.toLocaleTimeString("en-US", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: true,
-                    })
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: true,
+                  })
                   : "-",
                 status: apt.status || "scheduled",
               }
@@ -165,12 +185,12 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
                 phone: "-",
                 vaccine: apt.vaccine?.name || apt.appointmentType || "-",
                 appointmentType: apt.vaccine?.name || apt.appointmentType || "-",
-                time: apt.scheduled_date || apt.appointment_date || apt.dateTime
-                  ? new Date(apt.scheduled_date || apt.appointment_date || apt.dateTime).toLocaleTimeString("en-US", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: true,
-                    })
+                time: apt.scheduled_at || apt.scheduled_date || apt.appointment_date || apt.dateTime
+                  ? new Date(apt.scheduled_at || apt.scheduled_date || apt.appointment_date || apt.dateTime).toLocaleTimeString("en-US", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: true,
+                  })
                   : "-",
                 status: apt.status || "scheduled",
               }
@@ -395,14 +415,14 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
   const filteredAppointments = appointments.filter((appointment) => {
     // Filter by selected date if provided
     if (selectedDate) {
-      const aptDate = appointment.dateTime || appointment.scheduled_date || appointment.appointment_date
+      const aptDate = appointment.scheduled_at || appointment.dateTime || appointment.scheduled_date || appointment.appointment_date
       if (aptDate) {
         const appointmentDate = new Date(aptDate)
-        const isSameDate = 
+        const isSameDate =
           appointmentDate.getDate() === selectedDate.getDate() &&
           appointmentDate.getMonth() === selectedDate.getMonth() &&
           appointmentDate.getFullYear() === selectedDate.getFullYear()
-        
+
         if (!isSameDate) return false
       } else {
         return false // No date on appointment, exclude if filtering by date
@@ -519,7 +539,7 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
                         {appointment.time || new Date(appointment.dateTime || "").toLocaleTimeString()}
                       </td>
                       <td className="px-3 py-2 font-medium text-foreground">
-                        {appointment.child || appointment.childName || "-"}
+                        {appointment.childName || "-"}
                       </td>
                       <td className="px-3 py-2 text-foreground">
                         {appointment.vaccine || appointment.appointmentType || "-"}
@@ -616,7 +636,7 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
             <AlertDialogTitle>{t("appointments.call", language) || "Call Guardian"}</AlertDialogTitle>
             <AlertDialogDescription>
               {selectedAppointment
-                ? `${t("appointments.calling", language)} ${selectedAppointment.guardian || selectedAppointment.guardianName} at ${selectedAppointment.phone || selectedAppointment.guardianPhone}?`
+                ? `${t("appointments.calling", language) || "Calling"} ${selectedAppointment.guardianName || "-"} at ${selectedAppointment.phone || selectedAppointment.guardianPhone || "-"}?`
                 : ""}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -635,7 +655,7 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
             <AlertDialogTitle>{t("appointments.checkIn", language) || "Check In Appointment"}</AlertDialogTitle>
             <AlertDialogDescription>
               {selectedAppointment
-                ? `Confirm check-in for ${selectedAppointment.child || selectedAppointment.childName} for ${selectedAppointment.vaccine || selectedAppointment.appointmentType}?`
+                ? `Confirm check-in for ${selectedAppointment.childName || "-"} for ${selectedAppointment.vaccine || selectedAppointment.appointmentType || ""}?`
                 : ""}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -680,7 +700,7 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
                   <Label className="text-muted-foreground">{t("appointments.date", language) || "Date"}</Label>
                   <p className="font-medium">
                     {appointmentDetails.scheduled_date || appointmentDetails.appointment_date
-                      ? new Date(appointmentDetails.scheduled_date || appointmentDetails.appointment_date).toLocaleDateString()
+                      ? new Date((appointmentDetails.scheduled_date || appointmentDetails.appointment_date) as string).toLocaleDateString()
                       : "-"}
                   </p>
                 </div>
@@ -688,7 +708,7 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
                   <Label className="text-muted-foreground">{t("appointments.time", language) || "Time"}</Label>
                   <p className="font-medium">
                     {appointmentDetails.scheduled_date || appointmentDetails.appointment_date
-                      ? new Date(appointmentDetails.scheduled_date || appointmentDetails.appointment_date).toLocaleTimeString()
+                      ? new Date((appointmentDetails.scheduled_date || appointmentDetails.appointment_date) as string).toLocaleTimeString()
                       : "-"}
                   </p>
                 </div>

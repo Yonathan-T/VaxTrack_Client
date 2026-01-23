@@ -2,47 +2,154 @@
 
 import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
-import { getFacilities, getUsers, type Facility, type User as AdminUser } from "@/lib/admin-api"
+import { getFacilities, getUsers, createUser, deleteUser, type Facility, type User as AdminUser } from "@/lib/admin-api"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { useUser } from "@/lib/user-context"
+import { Plus, Trash2, Search, UserPlus, Loader2 } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export default function UsersPage() {
   const { user: currentUser } = useUser()
+  const { toast } = useToast()
   const [users, setUsers] = useState<AdminUser[]>([])
   const [facilities, setFacilities] = useState<Facility[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isCreating, setIsCreating] = useState(false)
+  const [isDeleting, setIsDeleting] = useState<string | null>(null)
   const [search, setSearch] = useState("")
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const [usersRes, facilitiesRes] = await Promise.all([getUsers(), getFacilities()])
+  // Create user form state
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    role: "healthcare_worker",
+    phone: "",
+    facility_id: "" as string | null
+  })
 
-        const payload: any = usersRes.data
-        const usersArray =
-          (Array.isArray(payload?.users) && payload.users) ||
-          (Array.isArray(payload?.data?.data) && payload.data.data) ||
-          (Array.isArray(payload?.data) && payload.data) ||
-          []
-        setUsers(usersArray as AdminUser[])
+  const loadData = async () => {
+    try {
+      setIsLoading(true)
+      const [usersRes, facilitiesRes] = await Promise.all([getUsers(), getFacilities()])
 
-        const fPayload: any = facilitiesRes.data
-        const fArray =
-          (Array.isArray(fPayload?.facilities) && fPayload.facilities) ||
-          (Array.isArray(fPayload?.data) && fPayload.data) ||
-          []
-        setFacilities(fArray as Facility[])
-      } catch (e) {
-        console.error("Failed to load users", e)
-      } finally {
-        setIsLoading(false)
-      }
+      const payload: any = usersRes.data
+      const usersArray =
+        (Array.isArray(payload) && payload) ||
+        (Array.isArray(payload?.users) && payload.users) ||
+        (Array.isArray(payload?.data?.data) && payload.data.data) ||
+        (Array.isArray(payload?.data) && payload.data) ||
+        []
+      setUsers(usersArray as AdminUser[])
+
+      const fPayload: any = facilitiesRes.data
+      const fArray =
+        (Array.isArray(fPayload) && fPayload) ||
+        (Array.isArray(fPayload?.facilities) && fPayload.facilities) ||
+        (Array.isArray(fPayload?.data) && fPayload.data) ||
+        []
+      setFacilities(fArray as Facility[])
+    } catch (e) {
+      console.error("Failed to load users", e)
+      toast({
+        title: "Error",
+        description: "Failed to load users and facilities",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
     }
-    load()
+  }
+
+  useEffect(() => {
+    loadData()
   }, [])
+
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsCreating(true)
+    try {
+      const { error } = await createUser({
+        ...formData,
+        facility_id: formData.facility_id === "null" || formData.facility_id === "" ? null : formData.facility_id
+      })
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to create user",
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "Success",
+          description: "User created successfully",
+        })
+        setIsAddModalOpen(false)
+        setFormData({
+          name: "",
+          email: "",
+          password: "",
+          role: "healthcare_worker",
+          phone: "",
+          facility_id: ""
+        })
+        loadData()
+      }
+    } catch (err) {
+      console.error("Create user error:", err)
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      const { error } = await deleteUser(userId)
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to delete user",
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "Success",
+          description: "User deleted successfully",
+        })
+        loadData()
+      }
+    } catch (err) {
+      console.error("Delete user error:", err)
+    } finally {
+      setIsDeleting(null)
+    }
+  }
 
   const isSuperAdmin = currentUser?.role === "admin" && (currentUser as any)?.facility_id == null
   const isLocalAdmin = currentUser?.role === "admin" && (currentUser as any)?.facility_id != null
@@ -116,9 +223,119 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Users</h1>
-        <p className="text-sm text-muted-foreground">All accounts from /v1/admin/users</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Users</h1>
+          <p className="text-sm text-muted-foreground">All accounts from /v1/admin/users</p>
+        </div>
+        {isSuperAdmin && (
+          <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <UserPlus className="h-4 w-4 mr-2" />
+                Add User
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Add New User</DialogTitle>
+                <DialogDescription>
+                  Create a new administrative or healthcare worker account.
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleAddUser} className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Full Name</Label>
+                  <Input
+                    id="name"
+                    placeholder="John Doe"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email Address</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="john@example.com"
+                    required
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    required
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="role">Role</Label>
+                    <Select
+                      value={formData.role}
+                      onValueChange={(val) => setFormData({ ...formData, role: val })}
+                    >
+                      <SelectTrigger id="role">
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="health_official">Health Official</SelectItem>
+                        <SelectItem value="healthcare_worker">Healthcare Worker</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="parent">Parent</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="facility">Facility</Label>
+                    <Select
+                      value={formData.facility_id || "null"}
+                      onValueChange={(val) => setFormData({ ...formData, facility_id: val })}
+                    >
+                      <SelectTrigger id="facility">
+                        <SelectValue placeholder="Select facility" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="null">Global (No Facility)</SelectItem>
+                        {facilities.map((f) => (
+                          <SelectItem key={f.id} value={String(f.id)}>
+                            {f.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone Number (Optional)</Label>
+                  <Input
+                    id="phone"
+                    placeholder="+2519..."
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  />
+                </div>
+                <DialogFooter className="pt-4">
+                  <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={isCreating}>
+                    {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Create User
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       <Card className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -213,9 +430,21 @@ export default function UsersPage() {
                         {formatDate(u.createdAt || (u as any).created_at)}
                       </td>
                       <td className="py-3 px-3">
-                        <Button asChild variant="outline" size="sm">
-                          <Link href={`/dashboard/users/${u.id}`}>Details</Link>
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button asChild variant="outline" size="sm">
+                            <Link href={`/dashboard/users/${u.id}`}>Details</Link>
+                          </Button>
+                          {isSuperAdmin && !isMe && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => setIsDeleting(u.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   )
@@ -225,6 +454,27 @@ export default function UsersPage() {
           </table>
         </div>
       </Card>
+
+      <AlertDialog open={isDeleting !== null} onOpenChange={(open) => !open && setIsDeleting(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the user account
+              and remove their access to the system.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => isDeleting && handleDeleteUser(isDeleting)}
+            >
+              Delete User
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

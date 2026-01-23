@@ -48,7 +48,7 @@ export function AppointmentCalendar({ onDateSelect, selectedDate }: AppointmentC
     const fetchAppointments = async () => {
       setIsLoading(true)
       try {
-        const response = await getAppointmentsList()
+        const response = await getAppointmentsList({ all: true })
         if (response.error) {
           console.error("[AppointmentCalendar] Error fetching appointments:", response.error)
           setAppointments([])
@@ -56,11 +56,11 @@ export function AppointmentCalendar({ onDateSelect, selectedDate }: AppointmentC
         }
 
         const appointmentsData = response.data as any
-        const appointmentsArray = Array.isArray(appointmentsData?.data) 
-          ? appointmentsData.data 
-          : Array.isArray(appointmentsData) 
-          ? appointmentsData 
-          : []
+        const appointmentsArray = Array.isArray(appointmentsData?.data)
+          ? appointmentsData.data
+          : Array.isArray(appointmentsData)
+            ? appointmentsData
+            : []
 
         setAppointments(appointmentsArray)
       } catch (error) {
@@ -77,11 +77,11 @@ export function AppointmentCalendar({ onDateSelect, selectedDate }: AppointmentC
   const getAppointmentCountForDay = (day: number): number => {
     const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
     const dateStr = date.toISOString().split('T')[0]
-    
+
     return appointments.filter((apt) => {
-      const aptDate = apt.scheduled_date || apt.appointment_date || apt.dateTime
+      const aptDate = apt.scheduled_at || apt.scheduled_date || apt.appointment_date || apt.dateTime
       if (!aptDate) return false
-      
+
       const appointmentDate = new Date(aptDate)
       return (
         appointmentDate.getDate() === day &&
@@ -199,7 +199,7 @@ export function AppointmentCalendar({ onDateSelect, selectedDate }: AppointmentC
           <span>{t("common.loading", language) || "Loading..."}</span>
         </div>
       )}
-      
+
       <div className="mt-3 flex items-center gap-3 text-xs">
         <div className="flex items-center gap-1.5">
           <div className="w-2.5 h-2.5 rounded-full bg-primary" />

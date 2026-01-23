@@ -1,126 +1,75 @@
-# Health Official Campaigns API Guide
+# Super Admin API Setup Guide
 
-## Route Group Configuration
 
-This route group:
+## Super Admin Capabilities & Endpoints
 
-```php
-Route::middleware('role:health_official')->prefix('official')->group(function () {
-    Route::post('/campaigns', [HealthOfficialController::class, 'storeCampaign']);
-    Route::get('/campaigns', [HealthOfficialController::class, 'indexCampaigns']);
-});
+### 1) Profile & Password
+
+**Get current user**
+`GET /api/v1/user`
+
+**Update profile**
+`PUT /api/v1/user/profile`
+
+**Body (any):**
+
+```json
+{ "name": "New Name", "email": "new@email.com", "phone": "+2519..." }
 ```
 
-## What This Means
+**Change password**
+`PUT /api/v1/user/password`
 
-### 1. Base URL
-
-Because it's inside `/v1`, these endpoints are actually:
-
-- `GET /api/v1/official/campaigns`
-- `POST /api/v1/official/campaigns`
-
-### 2. Authentication Requirement
-
-They are inside the protected `v1` group (`auth:sanctum`), so frontend must send:
-
-```
-Authorization: Bearer <token>
-Accept: application/json (recommended)
-```
-
-If you don't, you'll get redirect/unauthorized behavior.
-
-### 3. Role Requirement
-
-They also require:
-
-```
-role:health_official
-```
-
-So only users whose role is exactly `health_official` can access them (admins/nurses/parents cannot).
-
-## Endpoint Details
-
-### GET /api/v1/official/campaigns
-
-**What it does**
-Returns a paginated list of campaigns with these fields:
-
-- `id`
-- `title`
-- `target_region`
-- `start_date`
-- `end_date`
-- `status`
-
-**Response shape**
-It returns:
-
-- `success`
-- `message`
-- `data` (Laravel paginator object: items + pagination meta)
-
-So in frontend, treat `data.data` as the list (depending on your paginator JSON format).
-
-### POST /api/v1/official/campaigns
-
-**What it does**
-Creates a new campaign row in the campaigns table.
-
-**JSON body your frontend must send**
-
-Required fields:
-
-- `title` (string)
-- `target_region` (string)
-- `start_date` (date)
-- `end_date` (date, must be >= start_date)
-
-Optional:
-
-- `description` (string)
-- `target_vaccine_code` (string, must exist in vaccines.code)
-
-**Example:**
+**Body:**
 
 ```json
 {
-  "title": "Measles Campaign - Bole",
-  "description": "Catch-up vaccination for missed children",
-  "target_region": "Bole",
-  "start_date": "2026-02-01",
-  "end_date": "2026-02-28",
-  "target_vaccine_code": "MCV-1"
+  "old_password": "admin123",
+  "password": "newpassword123",
+  "password_confirmation": "newpassword123"
 }
 ```
 
-**Success response**
-HTTP 201
-JSON includes:
+**Logout**
+`POST /api/v1/auth/logout`
 
-- `success: true`
-- `message`
-- `campaign_id`
+### 2) User Management (Super Admin can create any role)
 
-**Validation failures**
-HTTP 422 with validation errors (Laravel default).
+**Route group:** `/api/v1/admin/*` (requires role:admin)
 
-## Campaign Model Details
 
-**Fillable fields:**
+**Create user**
+`POST /api/v1/admin/users`
 
-- `title`
-- `description`
-- `target_region`
-- `start_date`
-- `end_date`
-- `target_vaccine_code`
-- `status`
+**Body:**
 
-Dates are cast to dates, so you should send ISO format `YYYY-MM-DD`.
+```json
+{
+  "name": "User Name",
+  "email": "user@example.com",
+  "password": "password123",
+  "role": "health_official",
+  "facility_id": 1,
+  "phone": "+2519..."
+}
+```
 
----
+**Notes:**
 
-**Status:** Explained what the `/v1/official/campaigns` endpoints do, what headers they need, required payload, and responses.
+- Super Admin can set any role
+- Super Admin can set any facility_id or null (global)
+
+**Delete user**
+`DELETE /api/v1/admin/users/{userId}`
+
+### 3) Facility Management
+
+**Route group:** `/api/v1/admin/facilities/*` (admin only)
+
+Supports typical REST actions:
+
+- `GET /api/v1/admin/facilities` (list)
+- `POST /api/v1/admin/facilities` (create)
+- `GET /api/v1/admin/facilities/{facilityId}` (show)
+- `PUT /api/v1/admin/facilities/{facilityId}` (update)
+- `DELETE /api/v1/admin/facilities/{facilityId}` (delete)

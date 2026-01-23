@@ -35,7 +35,7 @@ export function HealthWorkerDashboard({ language: initialLanguage }: RoleDashboa
       try {
         const [childrenRes, appointmentsRes, alertsRes, todayDueRes] = await Promise.all([
           getChildrenList(),
-          getAppointmentsList(),
+          getAppointmentsList({ all: true }),
           getStockAlerts(),
           getTodayDue(),
         ])
@@ -65,12 +65,21 @@ export function HealthWorkerDashboard({ language: initialLanguage }: RoleDashboa
         }
 
         if (appointmentsRes.data) {
-          const appointmentsData = (appointmentsRes.data as any).appointments || appointmentsRes.data
-          if (Array.isArray(appointmentsData)) {
-            appointmentsCount = appointmentsData.filter(
-              (a) => new Date(a.dateTime) > new Date() && a.status !== "completed",
-            ).length
-          }
+          const resData = appointmentsRes.data as any
+          const appointmentsArray = Array.isArray(resData?.data)
+            ? resData.data
+            : Array.isArray(resData?.appointments)
+              ? resData.appointments
+              : Array.isArray(resData)
+                ? resData
+                : []
+
+          appointmentsCount = appointmentsArray.filter(
+            (a: any) => {
+              const status = a.status?.toLowerCase()
+              return (status === "scheduled" || status === "pending" || status === "confirmed")
+            }
+          ).length
         }
 
         if (alertsRes.data) {
@@ -82,7 +91,7 @@ export function HealthWorkerDashboard({ language: initialLanguage }: RoleDashboa
           const data = todayDueRes.data as any
           const todayDueChildren = data.data || []
           vaccinationsToday = todayDueChildren.length
-          
+
           todayDueChildren.forEach((child: any) => {
             pendingToday += (child.total_pending || 0) - (child.overdue_count || 0)
           })
@@ -113,7 +122,7 @@ export function HealthWorkerDashboard({ language: initialLanguage }: RoleDashboa
           {language === "am" ? `እንኳን ደህና መጡ, ${user?.name || "ነርስ"}` : `Welcome, ${user?.name || "Nurse"}`}
         </h1>
         <p className="text-lg text-muted-foreground">
-          {language === "am" 
+          {language === "am"
             ? "የክትባት አገልግሎት ለልጆች ይስጡ እና የጤና መዝገቦችን ያስተዳድሩ"
             : "Administer vaccinations and manage child health records"}
         </p>

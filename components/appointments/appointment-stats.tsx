@@ -14,6 +14,7 @@ export function AppointmentStats() {
     todaysAppointments: 0,
     thisWeek: 0,
     completedThisMonth: 0,
+    totalThisMonth: 0,
     missed: 0,
     completedToday: 0,
     pendingConfirmation: 0,
@@ -35,10 +36,10 @@ export function AppointmentStats() {
         const appointmentsArray = Array.isArray(appointmentsData?.data)
           ? appointmentsData.data
           : Array.isArray(appointmentsData?.appointments)
-          ? appointmentsData.appointments
-          : Array.isArray(appointmentsData)
-          ? appointmentsData
-          : []
+            ? appointmentsData.appointments
+            : Array.isArray(appointmentsData)
+              ? appointmentsData
+              : []
 
         const now = new Date()
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -54,10 +55,11 @@ export function AppointmentStats() {
         let thisWeekCount = 0
         let pendingConfirmationCount = 0
         let completedThisMonthCount = 0
+        let totalThisMonthCount = 0
         let missedCount = 0
 
         appointmentsArray.forEach((apt: any) => {
-          const aptDate = apt.scheduled_date || apt.appointment_date || apt.dateTime
+          const aptDate = apt.scheduled_at || apt.scheduled_date || apt.appointment_date || apt.dateTime
           if (!aptDate) return
 
           const appointmentDate = new Date(aptDate)
@@ -83,13 +85,12 @@ export function AppointmentStats() {
             }
           }
 
-          // Completed this month
-          if (
-            appointmentDate >= monthStart &&
-            appointmentDate <= monthEnd &&
-            (status === "completed" || status === "checked-in")
-          ) {
-            completedThisMonthCount++
+          // Month stats
+          if (appointmentDate >= monthStart && appointmentDate <= monthEnd) {
+            totalThisMonthCount++
+            if (status === "completed" || status === "checked-in") {
+              completedThisMonthCount++
+            }
           }
 
           // Missed appointments
@@ -105,6 +106,7 @@ export function AppointmentStats() {
           todaysAppointments: todaysCount,
           thisWeek: thisWeekCount,
           completedThisMonth: completedThisMonthCount,
+          totalThisMonth: totalThisMonthCount,
           missed: missedCount,
           completedToday: completedTodayCount,
           pendingConfirmation: pendingConfirmationCount,
@@ -135,23 +137,23 @@ export function AppointmentStats() {
     {
       title: t("appointments.stats.thisWeek", language) || "This Week",
       value: stats.thisWeek,
-      change: `${stats.pendingConfirmation} ${t("appointments.stats.pendingConfirmation", language) || "pending confirmation"}`,
+      change: `${stats.pendingConfirmation} ${t("appointments.stats.pendingConfirmation", language) || "pending"}`,
       icon: Clock,
       color: "text-purple-600",
       bgGradient: "from-purple-500/10 to-purple-600/5",
     },
     {
-      title: t("appointments.stats.completedThisMonth", language) || "Completed This Month",
-      value: stats.completedThisMonth,
-      change: t("appointments.stats.thisMonth", language) || "This month",
+      title: t("appointments.stats.thisMonth", language) || "Total This Month",
+      value: stats.totalThisMonth,
+      change: `${stats.completedThisMonth} ${t("appointments.stats.completed", language) || "completed"}`,
       icon: CheckCircle2,
       color: "text-green-600",
       bgGradient: "from-green-500/10 to-green-600/5",
     },
     {
-      title: t("appointments.stats.missed", language) || "Missed",
+      title: t("appointments.stats.missed", language) || "Overdue",
       value: stats.missed,
-      change: t("appointments.stats.requiresFollowUp", language) || "Requires follow-up",
+      change: t("vaccinations.stats.requiresFollowUp", language) || "Follow-up required",
       icon: XCircle,
       color: "text-destructive",
       bgGradient: "from-red-500/10 to-red-600/5",
@@ -174,10 +176,10 @@ export function AppointmentStats() {
             )}
             style={{
               animationDelay: `${index * 100}ms`,
-              borderLeftColor: stat.color === "text-primary" ? "rgb(59 130 246)" : 
-                              stat.color === "text-purple-600" ? "rgb(168 85 247)" :
-                              stat.color === "text-green-600" ? "rgb(34 197 94)" :
-                              "rgb(239 68 68)",
+              borderLeftColor: stat.color === "text-primary" ? "rgb(59 130 246)" :
+                stat.color === "text-purple-600" ? "rgb(168 85 247)" :
+                  stat.color === "text-green-600" ? "rgb(34 197 94)" :
+                    "rgb(239 68 68)",
             }}
           >
             {/* Animated background gradient */}
@@ -239,16 +241,16 @@ export function AppointmentStats() {
 
             {/* Shine effect on hover */}
             <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none opacity-0 hover:opacity-100" />
-            
+
             {/* Pulse ring effect */}
             {!isLoading && (
               <div className={cn(
                 "absolute -inset-1 rounded-lg opacity-0 hover:opacity-100 transition-opacity duration-500",
                 "bg-gradient-to-r",
                 stat.color === "text-primary" ? "from-blue-500/20 to-transparent" :
-                stat.color === "text-secondary" ? "from-purple-500/20 to-transparent" :
-                stat.color === "text-accent" ? "from-green-500/20 to-transparent" :
-                "from-red-500/20 to-transparent"
+                  stat.color === "text-secondary" ? "from-purple-500/20 to-transparent" :
+                    stat.color === "text-accent" ? "from-green-500/20 to-transparent" :
+                      "from-red-500/20 to-transparent"
               )} />
             )}
           </Card>

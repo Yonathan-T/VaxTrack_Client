@@ -1,90 +1,347 @@
-# Vaccinations API Implementation Notes
-
-## Current Implementation
-
-The Vaccinations page currently works by:
-1. Fetching all children from `/v1/children`
-2. For each child, fetching their profile from `/v1/children/{id}` which includes `vaccination_records`
-3. Aggregating all vaccination records into a single list
-
-## How It Works
-
-When you record a vaccination:
-1. The vaccination is saved to the child's record via the API
-2. The vaccination appears in the child's `vaccination_records` array
-3. The Vaccinations list page fetches all children and their records to display them
-
-## Current Flow
-
-```
-Record Vaccination → Saved to Child Record → Appears in Child Profile → 
-Fetched by Vaccinations List → Displayed in Table
-```
-
-## API Recommendations
-
-### Option 1: Current Approach (Works, but less efficient)
-- ✅ Works with existing API structure
-- ✅ No API changes needed
-- ❌ Requires fetching all children and their profiles
-- ❌ Can be slow with many children
-- ❌ Multiple API calls
-
-### Option 2: Dedicated Vaccinations Endpoint (Recommended)
-If you want better performance, consider adding:
-
-```
-GET /v1/vaccinations
-```
-
-This endpoint would return:
-```json
 {
-  "success": true,
-  "data": [
-    {
-      "id": 1,
-      "child_id": 4,
-      "child_name": "Danat Yonathan",
-      "vaccine_id": 1,
-      "vaccine_name": "BCG",
-      "date_administered": "2026-01-18",
-      "batch_number": "BCG-2024-001",
-      "administered_by": "Nurse Name",
-      "next_due_date": "2026-02-18",
-      "status": "completed"
-    }
-  ]
+    "success": true,
+    "date": null,
+    "start_date": "2026-01-01",
+    "end_date": "2026-01-31",
+    "count": 2,
+    "data": [
+        {
+            "id": 2,
+            "child_id": 1,
+            "facility_id": 1,
+            "created_by": null,
+            "scheduled_at": "2026-01-01 00:00:00",
+            "type": "vaccination",
+            "status": "scheduled",
+            "notes": "Standard EPI 6 Weeks Visit",
+            "created_at": "2026-01-23T11:53:24.000000Z",
+            "updated_at": "2026-01-23T11:53:24.000000Z",
+            "visit_number": 2,
+            "child": {
+                "id": 1,
+                "user_id": 6,
+                "registered_by": 3,
+                "facility_id": 1,
+                "first_name": "Beariyam",
+                "last_name": "Taweke",
+                "date_of_birth": "2025-11-19T21:00:00.000000Z",
+                "sex": "female",
+                "national_id": null,
+                "address": "Near Bole Health Center",
+                "created_at": "2026-01-23T11:53:24.000000Z",
+                "updated_at": "2026-01-23T11:53:24.000000Z",
+                "place_of_birth": "Addis Ababa",
+                "relationship_to_child": "Brother",
+                "kebele": "08",
+                "woreda": "Bole",
+                "house_number": "1234",
+                "birth_weight_kg": null,
+                "display_address": "Near Bole Health Center",
+                "parent": {
+                    "id": 6,
+                    "name": "Yonathan Taweke",
+                    "email": "yonathantaweke@gmail.com",
+                    "role": "parent",
+                    "facility_id": null,
+                    "phone": "0916887335",
+                    "created_at": "2026-01-23T11:52:35.000000Z",
+                    "updated_at": "2026-01-23T11:52:35.000000Z",
+                    "provider": null,
+                    "provider_id": null,
+                    "avatar": null
+                }
+            },
+            "vaccination_records": [
+                {
+                    "id": 3,
+                    "child_id": 1,
+                    "vaccine_id": 3,
+                    "facility_id": 1,
+                    "administered_by": 3,
+                    "dose_number": 1,
+                    "scheduled_date": "2025-12-31T21:00:00.000000Z",
+                    "date_administered": "2026-01-22T21:00:00.000000Z",
+                    "batch_number": "ROTA-ABC-001",
+                    "status": "completed",
+                    "notes": "Administered successfully",
+                    "created_at": "2026-01-23T11:53:24.000000Z",
+                    "updated_at": "2026-01-23T14:53:02.000000Z",
+                    "appointment_id": 2,
+                    "administration_site": null,
+                    "expiry_date": null,
+                    "dose_ml": null,
+                    "vaccine": {
+                        "id": 3,
+                        "code": "PENTA-1",
+                        "name": "DTP-HepB1-Hib1",
+                        "dose_number": 1,
+                        "min_age_days": 42,
+                        "description": "DTP-HepB-Hib (Dose 1)",
+                        "active": 1,
+                        "created_at": "2026-01-23T18:03:45.000000Z",
+                        "updated_at": "2026-01-23T18:03:45.000000Z"
+                    }
+                },
+                {
+                    "id": 4,
+                    "child_id": 1,
+                    "vaccine_id": 4,
+                    "facility_id": 1,
+                    "administered_by": null,
+                    "dose_number": 1,
+                    "scheduled_date": "2025-12-31T21:00:00.000000Z",
+                    "date_administered": null,
+                    "batch_number": null,
+                    "status": "overdue",
+                    "notes": null,
+                    "created_at": "2026-01-23T11:53:24.000000Z",
+                    "updated_at": "2026-01-23T11:53:24.000000Z",
+                    "appointment_id": 2,
+                    "administration_site": null,
+                    "expiry_date": null,
+                    "dose_ml": null,
+                    "vaccine": {
+                        "id": 4,
+                        "code": "PCV-1",
+                        "name": "PCV 1",
+                        "dose_number": 1,
+                        "min_age_days": 42,
+                        "description": "Pneumococcal (Dose 1)",
+                        "active": 1,
+                        "created_at": "2026-01-23T18:03:45.000000Z",
+                        "updated_at": "2026-01-23T18:03:45.000000Z"
+                    }
+                },
+                {
+                    "id": 5,
+                    "child_id": 1,
+                    "vaccine_id": 5,
+                    "facility_id": 1,
+                    "administered_by": 3,
+                    "dose_number": 1,
+                    "scheduled_date": "2025-12-31T21:00:00.000000Z",
+                    "date_administered": "2026-01-22T21:00:00.000000Z",
+                    "batch_number": "ROTA-ABC-001",
+                    "status": "completed",
+                    "notes": "Administered successfully",
+                    "created_at": "2026-01-23T11:53:24.000000Z",
+                    "updated_at": "2026-01-23T14:51:17.000000Z",
+                    "appointment_id": 2,
+                    "administration_site": null,
+                    "expiry_date": null,
+                    "dose_ml": null,
+                    "vaccine": {
+                        "id": 5,
+                        "code": "ROTA-1",
+                        "name": "Rota 1",
+                        "dose_number": 1,
+                        "min_age_days": 42,
+                        "description": "Rotavirus (Dose 1)",
+                        "active": 1,
+                        "created_at": "2026-01-23T18:03:45.000000Z",
+                        "updated_at": "2026-01-23T18:03:45.000000Z"
+                    }
+                },
+                {
+                    "id": 6,
+                    "child_id": 1,
+                    "vaccine_id": 6,
+                    "facility_id": 1,
+                    "administered_by": 3,
+                    "dose_number": 1,
+                    "scheduled_date": "2025-12-31T21:00:00.000000Z",
+                    "date_administered": "2026-01-22T21:00:00.000000Z",
+                    "batch_number": "ROTA-ABC-001",
+                    "status": "completed",
+                    "notes": "Administered successfully",
+                    "created_at": "2026-01-23T11:53:24.000000Z",
+                    "updated_at": "2026-01-23T14:54:09.000000Z",
+                    "appointment_id": 2,
+                    "administration_site": null,
+                    "expiry_date": null,
+                    "dose_ml": null,
+                    "vaccine": {
+                        "id": 6,
+                        "code": "OPV-1",
+                        "name": "OPV 1",
+                        "dose_number": 1,
+                        "min_age_days": 42,
+                        "description": "Oral Polio (Dose 1)",
+                        "active": 1,
+                        "created_at": "2026-01-23T18:03:45.000000Z",
+                        "updated_at": "2026-01-23T18:03:45.000000Z"
+                    }
+                }
+            ]
+        },
+        {
+            "id": 3,
+            "child_id": 1,
+            "facility_id": 1,
+            "created_by": null,
+            "scheduled_at": "2026-01-29 00:00:00",
+            "type": "vaccination",
+            "status": "scheduled",
+            "notes": "Standard EPI 10 Weeks Visit",
+            "created_at": "2026-01-23T11:53:24.000000Z",
+            "updated_at": "2026-01-23T11:53:24.000000Z",
+            "visit_number": 3,
+            "child": {
+                "id": 1,
+                "user_id": 6,
+                "registered_by": 3,
+                "facility_id": 1,
+                "first_name": "Beariyam",
+                "last_name": "Taweke",
+                "date_of_birth": "2025-11-19T21:00:00.000000Z",
+                "sex": "female",
+                "national_id": null,
+                "address": "Near Bole Health Center",
+                "created_at": "2026-01-23T11:53:24.000000Z",
+                "updated_at": "2026-01-23T11:53:24.000000Z",
+                "place_of_birth": "Addis Ababa",
+                "relationship_to_child": "Brother",
+                "kebele": "08",
+                "woreda": "Bole",
+                "house_number": "1234",
+                "birth_weight_kg": null,
+                "display_address": "Near Bole Health Center",
+                "parent": {
+                    "id": 6,
+                    "name": "Yonathan Taweke",
+                    "email": "yonathantaweke@gmail.com",
+                    "role": "parent",
+                    "facility_id": null,
+                    "phone": "0916887335",
+                    "created_at": "2026-01-23T11:52:35.000000Z",
+                    "updated_at": "2026-01-23T11:52:35.000000Z",
+                    "provider": null,
+                    "provider_id": null,
+                    "avatar": null
+                }
+            },
+            "vaccination_records": [
+                {
+                    "id": 7,
+                    "child_id": 1,
+                    "vaccine_id": 7,
+                    "facility_id": 1,
+                    "administered_by": 3,
+                    "dose_number": 1,
+                    "scheduled_date": "2026-01-28T21:00:00.000000Z",
+                    "date_administered": "2026-01-22T21:00:00.000000Z",
+                    "batch_number": "ROTA-ABC-001",
+                    "status": "completed",
+                    "notes": "Administered successfully",
+                    "created_at": "2026-01-23T11:53:24.000000Z",
+                    "updated_at": "2026-01-23T14:54:15.000000Z",
+                    "appointment_id": 3,
+                    "administration_site": null,
+                    "expiry_date": null,
+                    "dose_ml": null,
+                    "vaccine": {
+                        "id": 7,
+                        "code": "PENTA-2",
+                        "name": "DTP-HepB2-Hib2",
+                        "dose_number": 2,
+                        "min_age_days": 70,
+                        "description": "DTP-HepB-Hib (Dose 2)",
+                        "active": 1,
+                        "created_at": "2026-01-23T18:03:45.000000Z",
+                        "updated_at": "2026-01-23T18:03:45.000000Z"
+                    }
+                },
+                {
+                    "id": 8,
+                    "child_id": 1,
+                    "vaccine_id": 8,
+                    "facility_id": 1,
+                    "administered_by": null,
+                    "dose_number": 1,
+                    "scheduled_date": "2026-01-28T21:00:00.000000Z",
+                    "date_administered": null,
+                    "batch_number": null,
+                    "status": "scheduled",
+                    "notes": null,
+                    "created_at": "2026-01-23T11:53:24.000000Z",
+                    "updated_at": "2026-01-23T11:53:24.000000Z",
+                    "appointment_id": 3,
+                    "administration_site": null,
+                    "expiry_date": null,
+                    "dose_ml": null,
+                    "vaccine": {
+                        "id": 8,
+                        "code": "PCV-2",
+                        "name": "PCV 2",
+                        "dose_number": 2,
+                        "min_age_days": 70,
+                        "description": "Pneumococcal (Dose 2)",
+                        "active": 1,
+                        "created_at": "2026-01-23T18:03:45.000000Z",
+                        "updated_at": "2026-01-23T18:03:45.000000Z"
+                    }
+                },
+                {
+                    "id": 9,
+                    "child_id": 1,
+                    "vaccine_id": 9,
+                    "facility_id": 1,
+                    "administered_by": null,
+                    "dose_number": 1,
+                    "scheduled_date": "2026-01-28T21:00:00.000000Z",
+                    "date_administered": null,
+                    "batch_number": null,
+                    "status": "scheduled",
+                    "notes": null,
+                    "created_at": "2026-01-23T11:53:24.000000Z",
+                    "updated_at": "2026-01-23T11:53:24.000000Z",
+                    "appointment_id": 3,
+                    "administration_site": null,
+                    "expiry_date": null,
+                    "dose_ml": null,
+                    "vaccine": {
+                        "id": 9,
+                        "code": "ROTA-2",
+                        "name": "Rota 2",
+                        "dose_number": 2,
+                        "min_age_days": 70,
+                        "description": "Rotavirus (Dose 2)",
+                        "active": 1,
+                        "created_at": "2026-01-23T18:03:45.000000Z",
+                        "updated_at": "2026-01-23T18:03:45.000000Z"
+                    }
+                },
+                {
+                    "id": 10,
+                    "child_id": 1,
+                    "vaccine_id": 10,
+                    "facility_id": 1,
+                    "administered_by": null,
+                    "dose_number": 1,
+                    "scheduled_date": "2026-01-28T21:00:00.000000Z",
+                    "date_administered": null,
+                    "batch_number": null,
+                    "status": "scheduled",
+                    "notes": null,
+                    "created_at": "2026-01-23T11:53:24.000000Z",
+                    "updated_at": "2026-01-23T11:53:24.000000Z",
+                    "appointment_id": 3,
+                    "administration_site": null,
+                    "expiry_date": null,
+                    "dose_ml": null,
+                    "vaccine": {
+                        "id": 10,
+                        "code": "OPV-2",
+                        "name": "OPV 2",
+                        "dose_number": 2,
+                        "min_age_days": 70,
+                        "description": "Oral Polio (Dose 2)",
+                        "active": 1,
+                        "created_at": "2026-01-23T18:03:45.000000Z",
+                        "updated_at": "2026-01-23T18:03:45.000000Z"
+                    }
+                }
+            ]
+        }
+    ]
 }
-```
-
-### Benefits of Dedicated Endpoint
-- ✅ Single API call instead of N+1 calls
-- ✅ Faster loading
-- ✅ Can include pagination
-- ✅ Can filter by date range, vaccine type, etc.
-- ✅ Better for large datasets
-
-## Current Status
-
-The current implementation works fine for:
-- Small to medium datasets (< 1000 children)
-- When you need to see all vaccinations across all children
-- When vaccination records are always tied to children
-
-If you have many children (1000+), consider implementing Option 2 for better performance.
-
-## What the Vaccinations Table Shows
-
-The table displays:
-- **All vaccination records** from all children
-- Each row = one vaccination that was administered
-- Shows: Child name, Vaccine, Date, Batch number, Administered by, Next due date, Status
-- You can filter by status (completed, scheduled, overdue)
-- You can search by child name or vaccine name
-
-This gives you a complete view of all vaccinations in the system, which is useful for:
-- Tracking vaccination coverage
-- Finding specific vaccinations
-- Reviewing batch numbers
-- Monitoring who administered what

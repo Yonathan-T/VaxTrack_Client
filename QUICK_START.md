@@ -1,58 +1,76 @@
-# Campaign Management API Guide
+# Local Admin User Management Guide
 
-## 1) Mark a campaign as completed (or change status)
+## What Local Admin Can Do (Users They Can Create)
 
-### Endpoint
+### Create Users (Local Admin)
 
-```http
-PATCH /api/v1/official/campaigns/{campaignId}
-Authorization: Bearer <token>
-Accept: application/json
-Content-Type: application/json
-```
+Local admins can create ONLY nurses/healthcare workers and they are always tied to the local admin's facility.
 
-### Payload Examples
+There are two ways in your API:
 
-**Mark as completed**
+### Option A: Create Nurse via "nurses" Endpoint
 
-```json
-{ "status": "completed" }
-```
+**Endpoint:** `POST /api/v1/nurses`
 
-**Mark as cancelled**
+**Who can call it:** admin (including local admin)
+
+**What it creates:** a healthcare_worker user for the admin's facility
+
+**Payload depends on NurseController@store** (frontend should follow its required fields), but typically:
 
 ```json
-{ "status": "cancelled" }
+{
+  "name": "Nurse Name",
+  "email": "nurse.new@vaxtrack.com",
+  "password": "nurse12345",
+  "phone": "+2519..."
+}
 ```
 
-**Mark as active**
+### Option B: Create Nurse via Admin Users Endpoint
+
+**Endpoint:** `POST /api/v1/admin/users`
+
+Even though the endpoint supports multiple roles, the backend restricts local admins:
+
+**Allowed role for Local Admin:** healthcare_worker only
+**facility_id:** ignored/forced to local admin's facility
+
+**Example payload:**
 
 ```json
-{ "status": "active" }
+{
+  "name": "Nurse Name",
+  "email": "nurse.new@vaxtrack.com",
+  "password": "nurse12345",
+  "role": "healthcare_worker",
+  "facility_id": 999,
+  "phone": "+2519..."
+}
 ```
 
-You can also update other fields in the same call (title, description, target_region, start_date, end_date, target_vaccine_code).
+**Important:** Even if frontend sends facility_id, the backend will override it to the local admin's own facility_id.
 
-### Success Response
+## What Local Admin Cannot Do (Important for Frontend UI)
 
-Returns:
+Local admins cannot create:
 
-- `success: true`
-- `message`
-- `data` (the updated campaign)
+- `admin`
+- `health_official`
+- `parent`
 
-## 2) Delete a campaign
+Local admins also cannot assign users to other facilities.
 
-### Endpoint
+## Frontend UI Recommendations for Local Admins
 
-```http
-DELETE /api/v1/official/campaigns/{campaignId}
-Authorization: Bearer <token>
-Accept: application/json
-```
+- Show only "Create Nurse" / "Create Healthcare Worker"
+- Hide role selector (or lock it to healthcare_worker)
+- Hide facility selector (or lock it to their facility)
 
-### Success Response
+## Helpful Endpoint for Local Admin UI (Listing Users)
 
-```json
-{ "success": true, "message": "Campaign deleted successfully" }
-```
+**Endpoint:** `GET /api/v1/admin/users`
+
+**Optional query:** `?role=healthcare_worker`
+
+This will show staff in their facility + related parents logic (based on current controller behavior).

@@ -61,6 +61,7 @@ export interface Appointment {
   };
   childName?: string;
   scheduled_date?: string;
+  scheduled_at?: string;
   dateTime?: string;
   appointment_date?: string;
   status:
@@ -71,13 +72,22 @@ export interface Appointment {
   | "confirmed"
   | "pending"
   | "cancelled"
-  | "checked-in";
+  | "checked-in"
+  | "overdue";
   appointmentType?: string;
   vaccine?: {
     id: number;
     name: string;
     code: string;
   };
+  vaccination_records?: {
+    id: number;
+    vaccine: {
+      name: string;
+      code: string;
+    };
+    status: string;
+  }[];
   vaccine_id?: number;
   facility_id?: number;
   facility?: {
@@ -191,10 +201,13 @@ export async function scheduleAppointment(data: {
   return apiClient.post("/v1/appointments", data);
 }
 
-export async function getAppointmentsList(searchQuery?: string) {
-  const url = searchQuery
-    ? `/v1/appointments?search=${encodeURIComponent(searchQuery)}`
-    : "/v1/appointments";
+export async function getAppointmentsList(params?: { search?: string; date?: string; all?: boolean }) {
+  const query = new URLSearchParams();
+  if (params?.search) query.append("search", params.search);
+  if (params?.date) query.append("date", params.date);
+
+  const queryString = query.toString();
+  const url = queryString ? `/v1/appointments?${queryString}` : "/v1/appointments";
   return apiClient.get<{ data: Appointment[] } | Appointment[]>(url);
 }
 
