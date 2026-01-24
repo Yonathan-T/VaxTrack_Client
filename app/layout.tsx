@@ -13,6 +13,11 @@ export const metadata: Metadata = {
   title: "VaxTrack - Vaccination Tracking System",
   description: "Children Vaccination Tracking System for Addis Ketema Sub-city",
   generator: "v0.app",
+  icons: {
+    icon: "/logo.svg",
+    shortcut: "/logo.svg",
+    apple: "/logo.svg",
+  },
 }
 
 export default function RootLayout({
