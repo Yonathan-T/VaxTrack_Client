@@ -228,8 +228,30 @@ export default function UsersPage() {
           <h1 className="text-2xl font-bold text-foreground">Users</h1>
           <p className="text-sm text-muted-foreground">All accounts from /v1/admin/users</p>
         </div>
-        {isSuperAdmin && (
-          <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+        {(isSuperAdmin || isLocalAdmin) && (
+          <Dialog open={isAddModalOpen} onOpenChange={(open) => {
+            setIsAddModalOpen(open)
+            // Reset form when opening dialog
+            if (open && isLocalAdmin) {
+              setFormData({
+                name: "",
+                email: "",
+                password: "",
+                role: "healthcare_worker",
+                phone: "",
+                facility_id: String((currentUser as any)?.facility_id || "")
+              })
+            } else if (open) {
+              setFormData({
+                name: "",
+                email: "",
+                password: "",
+                role: "healthcare_worker",
+                phone: "",
+                facility_id: ""
+              })
+            }
+          }}>
             <DialogTrigger asChild>
               <Button>
                 <UserPlus className="h-4 w-4 mr-2" />
@@ -240,7 +262,9 @@ export default function UsersPage() {
               <DialogHeader>
                 <DialogTitle>Add New User</DialogTitle>
                 <DialogDescription>
-                  Create a new administrative or healthcare worker account.
+                  {isLocalAdmin
+                    ? "Create a new healthcare worker or health official for your facility."
+                    : "Create a new administrative or healthcare worker account."}
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleAddUser} className="space-y-4 py-4">
@@ -287,32 +311,43 @@ export default function UsersPage() {
                         <SelectValue placeholder="Select role" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="health_official">Health Official</SelectItem>
-                        <SelectItem value="healthcare_worker">Healthcare Worker</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="parent">Parent</SelectItem>
+                        {isLocalAdmin ? (
+                          <>
+                            <SelectItem value="healthcare_worker">Healthcare Worker</SelectItem>
+                            <SelectItem value="health_official">Health Official</SelectItem>
+                          </>
+                        ) : (
+                          <>
+                            <SelectItem value="health_official">Health Official</SelectItem>
+                            <SelectItem value="healthcare_worker">Healthcare Worker</SelectItem>
+                            <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="parent">Parent</SelectItem>
+                          </>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="facility">Facility</Label>
-                    <Select
-                      value={formData.facility_id || "null"}
-                      onValueChange={(val) => setFormData({ ...formData, facility_id: val })}
-                    >
-                      <SelectTrigger id="facility">
-                        <SelectValue placeholder="Select facility" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="null">Global (No Facility)</SelectItem>
-                        {facilities.map((f) => (
-                          <SelectItem key={f.id} value={String(f.id)}>
-                            {f.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {!isLocalAdmin && (
+                    <div className="space-y-2">
+                      <Label htmlFor="facility">Facility</Label>
+                      <Select
+                        value={formData.facility_id || "null"}
+                        onValueChange={(val) => setFormData({ ...formData, facility_id: val })}
+                      >
+                        <SelectTrigger id="facility">
+                          <SelectValue placeholder="Select facility" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="null">Global (No Facility)</SelectItem>
+                          {facilities.map((f) => (
+                            <SelectItem key={f.id} value={String(f.id)}>
+                              {f.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number (Optional)</Label>

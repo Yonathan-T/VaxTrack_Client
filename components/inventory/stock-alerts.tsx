@@ -13,7 +13,7 @@ import { RestockOrderModal } from "./restock-order-modal"
 import { getStockAlerts } from "@/lib/healthcare-worker-api"
 
 interface Alert {
-  id: string | number
+  id: number
   type: "critical" | "warning" | "info" | "expiring" | "low"
   vaccine: string
   message: string
@@ -79,7 +79,7 @@ export function StockAlerts() {
           }
 
           return {
-            id: alert.id || Date.now(),
+            id: typeof alert.id === 'number' ? alert.id : Number(alert.id) || Date.now(),
             type,
             vaccine: alert.vaccine?.name || alert.vaccine_name || "Unknown",
             message: alert.message || alert.description || "Stock alert",

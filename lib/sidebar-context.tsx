@@ -7,12 +7,16 @@ import { createContext, useContext, useState, useEffect } from "react"
 interface SidebarContextType {
   isCollapsed: boolean
   toggleSidebar: () => void
+  mobileMenuOpen: boolean
+  toggleMobileMenu: () => void
+  setMobileMenuOpen: (open: boolean) => void
 }
 
 const SidebarContext = createContext<SidebarContextType | undefined>(undefined)
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
 
   // Load from localStorage on mount
@@ -35,7 +39,15 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     setIsCollapsed((prev) => !prev)
   }
 
-  return <SidebarContext.Provider value={{ isCollapsed, toggleSidebar }}>{children}</SidebarContext.Provider>
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen((prev) => !prev)
+  }
+
+  return (
+    <SidebarContext.Provider value={{ isCollapsed, toggleSidebar, mobileMenuOpen, toggleMobileMenu, setMobileMenuOpen }}>
+      {children}
+    </SidebarContext.Provider>
+  )
 }
 
 export function useSidebar() {

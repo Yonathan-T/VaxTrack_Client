@@ -31,7 +31,7 @@ export function DashboardHeader() {
   const { user, logout } = useUser()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const { toast } = useToast()
-  const { toggleSidebar } = useSidebar() // Get sidebar toggle function
+  const { toggleSidebar, toggleMobileMenu } = useSidebar()
 
   const [notifications, setNotifications] = useState<any[]>([])
 
@@ -61,13 +61,13 @@ export function DashboardHeader() {
       logout() // This calls apiClient.clearToken() and sets user to null
       // Give middleware time to process the cookie removal before redirecting
       await new Promise((resolve) => setTimeout(resolve, 100))
-      await router.push("/login")
+      await router.push("/")
     } catch (error) {
       console.error("[v0] Logout error:", error)
       // Even if logout request fails, clear local state and redirect
       logout()
       await new Promise((resolve) => setTimeout(resolve, 100))
-      await router.push("/login")
+      await router.push("/")
     } finally {
       setIsLoggingOut(false)
     }
@@ -76,10 +76,27 @@ export function DashboardHeader() {
   if (!user) return null
 
   return (
-    <header className="border-b border-border bg-card sticky top-0 z-50">
-      <div className="flex items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={toggleSidebar} className="hidden lg:flex" title="Toggle sidebar">
+    <header className="border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-50 shadow-sm">
+      <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4">
+        <div className="flex items-center gap-3">
+          {/* Mobile Hamburger Menu */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleMobileMenu}
+            className="lg:hidden hover:bg-primary/10 rounded-xl transition-all active:scale-95"
+            title="Toggle menu"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+          {/* Desktop Sidebar Toggle */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleSidebar}
+            className="hidden lg:flex hover:bg-primary/10 rounded-xl transition-all active:scale-95"
+            title="Toggle sidebar"
+          >
             <Menu className="h-5 w-5" />
           </Button>
           <Link href="/" className="flex items-center gap-2 group transition-all duration-300 hover:opacity-80">

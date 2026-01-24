@@ -8,80 +8,100 @@ import { LanguageSwitcher } from "@/components/language-switcher"
 import { useLanguage } from "@/lib/language-context"
 import { t } from "@/lib/translations"
 
+import { Badge } from "@/components/ui/badge"
+import { Card } from "@/components/ui/card"
+
 export default function LoginPage() {
   const { language } = useLanguage()
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-background">
+    <div className="min-h-screen flex flex-col md:flex-row bg-background selection:bg-primary selection:text-primary-foreground">
       {/* Left Side - Branding */}
       <div className="hidden md:flex md:w-1/2 bg-primary p-12 flex-col justify-between text-primary-foreground relative overflow-hidden">
+        {/* Logo and Home Link (Desktop) */}
+        <div className="relative z-20">
+          <Link href="/" className="flex items-center gap-2 group w-fit text-white">
+            <div className="p-2 bg-white/10 rounded-xl backdrop-blur-md group-hover:scale-105 transition-transform duration-300">
+              <Image src="/logo.svg" alt="VaxTrack" width={32} height={32} />
+            </div>
+            <span className="text-2xl font-bold tracking-tight text-white uppercase italic">VaxTrack</span>
+          </Link>
+        </div>
+
         <Image
-          src="/images/vaccination-login.webp"
+          src="/images/vaccination-new.jpg"
           alt="Child receiving vaccination"
           fill
           priority
           loading="eager"
-          className="object-cover absolute inset-0"
+          className="object-cover absolute inset-0 transition-transform duration-[10s] hover:scale-110"
         />
-        {/* Overlay for text readability */}
-        <div className="absolute inset-0 bg-primary/60"></div>
+        {/* Sophisticated Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-primary/95 via-primary/40 to-transparent z-10" />
 
-        <div className="relative z-10 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-primary-foreground/20 p-2.5 rounded-lg backdrop-blur-sm">
-              <Shield className="h-7 w-7 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">VaxTrack</h1>
-              <p className="text-sm opacity-90 font-medium">{t("login.location", language)}</p>
+        <div className="relative z-20 mt-auto space-y-6">
+          <Badge variant="outline" className="text-white border-white/30 px-3 py-1 bg-white/10 backdrop-blur-md">
+            Trusted Platform
+          </Badge>
+          <h2 className="text-5xl lg:text-6xl font-extrabold text-balance leading-[1.1] text-white">
+            {t("login.title", language)}
+          </h2>
+          <div className="flex items-center justify-between pt-8 border-t border-white/20">
+            <p className="text-sm font-medium text-white/80">{t("login.serving", language)}</p>
+            <div className="flex gap-4">
+              <div className="h-2 w-8 bg-white/40 rounded-full" />
+              <div className="h-2 w-2 bg-white/20 rounded-full" />
+              <div className="h-2 w-2 bg-white/20 rounded-full" />
             </div>
           </div>
-          <LanguageSwitcher />
         </div>
-
-        <div className="relative z-10">
-          <h2 className="text-5xl font-bold text-balance leading-tight">{t("login.title", language)}</h2>
-        </div>
-
-        <div className="relative z-10 text-sm opacity-80 font-medium">{t("login.serving", language)}</div>
       </div>
 
       {/* Right Side - Login Form */}
-      <div className="flex-1 flex items-center justify-center p-6 md:p-12 bg-background">
-        <div className="w-full max-w-md">
-          <div className="md:hidden mb-10 flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="bg-primary/10 p-2 rounded-lg">
-                  <Shield className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold text-foreground">VaxTrack</h1>
-                  <p className="text-xs text-muted-foreground">{t("login.location", language)}</p>
-                </div>
+      <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-12 bg-background relative">
+        {/* Header Actions (Floating) */}
+        <div className="absolute top-6 right-6 flex items-center gap-3">
+          <LanguageSwitcher />
+        </div>
+
+        <div className="w-full max-w-md space-y-8 animate-fade-in-up">
+          {/* Logo (Mobile) */}
+          <div className="md:hidden flex justify-center mb-8">
+            <Link href="/" className="flex flex-col items-center gap-2">
+              <div className="p-3 bg-primary/10 rounded-2xl">
+                <Image src="/logo.svg" alt="VaxTrack" width={40} height={40} />
               </div>
-              <LanguageSwitcher />
-            </div>
+              <span className="text-xl font-bold text-primary italic">VaxTrack</span>
+            </Link>
           </div>
 
-          <div className="mb-8">
-            <h2 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight">
+          <div className="space-y-2 text-center md:text-left">
+            <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-foreground">
               {t("login.welcome", language)}
             </h2>
+            <p className="text-muted-foreground">{t("login.signIn", language)}</p>
           </div>
 
-          <div className="mb-8">
+          <Card className="p-1 border-none bg-transparent shadow-none">
             <LoginForm />
-          </div>
+          </Card>
 
-          <div className="pt-6 border-t border-border">
-            <p className="text-center text-sm text-muted-foreground">
+          <footer className="pt-8 border-t border-border flex flex-col items-center gap-6">
+            <p className="text-sm text-muted-foreground text-center">
               {t("login.noAccount", language)}{" "}
-              <Link href="/register" className="font-semibold text-primary hover:text-primary/80 transition-colors">
+              <Link href="/register" className="font-bold text-primary hover:underline transition-all">
                 {t("login.registerHere", language)}
               </Link>
             </p>
-          </div>
+
+            <div className="flex items-center gap-4 opacity-50 text-xs">
+              <Link href="/" className="hover:text-primary transition-colors">Home</Link>
+              <span>•</span>
+              <span className="cursor-default">Privacy</span>
+              <span>•</span>
+              <span className="cursor-default">Security</span>
+            </div>
+          </footer>
         </div>
       </div>
     </div>
