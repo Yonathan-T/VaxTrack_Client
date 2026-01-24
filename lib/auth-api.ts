@@ -69,7 +69,7 @@ export async function submitNewPassword(token: string, password: string) {
 
 export async function googleOAuthRedirect() {
   // This endpoint redirects to Google OAuth flow
-  window.location.href = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"}/auth/social/google/redirect`
+  window.location.href = `${process.env.NEXT_PUBLIC_API_URL || "https://vaxtrackapi.onrender.com/api"}/auth/social/google/redirect`
 }
 
 export async function changePassword(data: {
