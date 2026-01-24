@@ -33,17 +33,23 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const verifyUser = async () => {
-      const token = typeof window !== "undefined" ? localStorage.getItem("authToken") : null
-      if (token) {
-        const { data, error } = await getProfile()
-        if (!error && data) {
-          setUser(data as User)
-        } else {
-          if (error?.status === 401 || error?.status === 403) {
-            apiClient.clearToken() // use apiClient.clearToken() to properly clear both localStorage and cookie
+      try {
+        const token = typeof window !== "undefined" ? localStorage.getItem("authToken") : null
+        if (token) {
+          const { data, error } = await getProfile()
+          if (!error && data) {
+            setUser(data as User)
+          } else {
+            // Clear invalid token
+            apiClient.clearToken()
             setUser(null)
           }
         }
+      } catch (err) {
+        console.error("User verification failed:", err)
+        // Clear any invalid token on error
+        apiClient.clearToken()
+        setUser(null)
       }
       setIsLoading(false)
     }
