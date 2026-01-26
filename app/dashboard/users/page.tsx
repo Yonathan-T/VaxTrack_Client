@@ -151,14 +151,14 @@ export default function UsersPage() {
     }
   }
 
-  const isSuperAdmin = currentUser?.role === "admin" && (currentUser as any)?.facility_id == null
-  const isLocalAdmin = currentUser?.role === "admin" && (currentUser as any)?.facility_id != null
+  const isLocalAdmin = currentUser?.role === "admin" && ((currentUser as any)?.facility_id != null || (currentUser as any)?.facility != null)
+  const isSuperAdmin = currentUser?.role === "admin" && !isLocalAdmin
 
   const filtered = users.filter((u: any) => {
     // Facility scoping: local admins see users tied to their facility either by user's facility_id
     // or via any child's facility_id matching theirs (parents usually have null facility_id)
     if (isLocalAdmin) {
-      const myFacilityId = String((currentUser as any)?.facility_id)
+      const myFacilityId = String((currentUser as any)?.facility_id || (currentUser as any)?.facility?.id || "")
       const userFacilityId = u?.facility_id != null ? String(u?.facility_id) : ""
       const childMatches = Array.isArray(u?.children)
         ? u.children.some((c: any) => String(c?.facility_id) === myFacilityId)
@@ -206,7 +206,7 @@ export default function UsersPage() {
     if (isLocalAdmin) {
       const rank = (u: any) => {
         if ((u?.role || "").toLowerCase() === "healthcare_worker") return 0
-        const myFacilityId = String((currentUser as any)?.facility_id)
+        const myFacilityId = String((currentUser as any)?.facility_id || (currentUser as any)?.facility?.id || "")
         const childMatches = Array.isArray(u?.children)
           ? u.children.some((c: any) => String(c?.facility_id) === myFacilityId)
           : false

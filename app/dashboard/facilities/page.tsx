@@ -173,7 +173,7 @@ export default function FacilitiesPage() {
         )
     })
 
-    const isSuperAdmin = currentUser?.role === "admin" && (currentUser as any)?.facility_id == null
+    const isSuperAdmin = currentUser?.role === "admin" && (currentUser as any)?.facility_id == null && (currentUser as any)?.facility == null
 
     if (!isSuperAdmin && !isLoading) {
         return (

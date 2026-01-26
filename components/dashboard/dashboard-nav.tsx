@@ -59,8 +59,8 @@ export function DashboardNav() {
         { title: t("dashboard.nav.settings", language), href: "/dashboard/settings", icon: Settings },
       ],
       admin: (() => {
-        const isSuperAdmin = user?.role === "admin" && (user as any)?.facility_id == null
-        const isLocalAdmin = user?.role === "admin" && (user as any)?.facility_id != null
+        const isLocalAdmin = user?.role === "admin" && ((user as any)?.facility_id != null || (user as any)?.facility != null)
+        const isSuperAdmin = user?.role === "admin" && !isLocalAdmin
         const items: NavItem[] = []
         // Common admin features
         items.push({ title: t("dashboard.nav.children", language), href: "/dashboard/children", icon: Users })

@@ -249,7 +249,7 @@ export async function downloadReport(reportType: "coverage" | "overdue_summary" 
   // Use window.open or fetch depending on how you want to handle the file
   // The guide says GET /api/v1/reports/download/{reportType}?format={format}
   const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null
-  const url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"}/v1/reports/download/${reportType}?format=${format}`
+  const url = `${process.env.NEXT_PUBLIC_API_URL || "https://vaxtrackapi.onrender.com/api"}/v1/reports/download/${reportType}?format=${format}`
 
   if (token) {
     // For downloads with auth, we often need to fetch and blob or use a query param if supported
