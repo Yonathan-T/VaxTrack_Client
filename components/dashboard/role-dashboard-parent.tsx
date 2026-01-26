@@ -8,6 +8,7 @@ import { useUser } from "@/lib/user-context"
 import { ParentViewChildren } from "./parent-view-children"
 import { ParentVaccinationReminders } from "./parent-vaccination-reminders"
 import { getParentDashboard, getChildren, getChildDetails, type Child, type ParentDashboard as ParentDashboardData } from "@/lib/parent-api"
+import { cn } from "@/lib/utils"
 
 interface RoleDashboardProps {
   language: string
@@ -130,64 +131,82 @@ export function ParentDashboard({ language }: RoleDashboardProps) {
       </div>
 
       <div className="grid md:grid-cols-3 gap-4">
-        <Card className="p-6 border-green-200 bg-green-50/50 
-    transition-all duration-300 ease-out
-    hover:shadow-xl hover:shadow-green-200/40
-    hover:-translate-y-1
-    hover:border-green-300
-    group ">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-green-900">{language === "am" ? "ሁሉንም የወሰዱ" : "Up to Date"}</p>
-              <p className="text-3xl font-bold text-green-700 mt-2">{upToDateCount}</p>
-              <p className="text-xs text-green-600 mt-1">{language === "am" ? "ልጆች" : "Children"}</p>
-            </div>
-            <CheckCircle className="h-10 w-10 text-green-600 opacity-50" />
-          </div>
-        </Card>
-
-        <Card className="p-6 border-orange-200 bg-orange-50/50 
-    transition-all duration-300 ease-out
-    hover:shadow-xl hover:shadow-orange-200/40
-    hover:-translate-y-1
-    hover:border-orange-300
-    group ">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-orange-900">{language === "am" ? "ሚገባ" : "Due for Vaccination"}</p>
-              <p className="text-3xl font-bold text-orange-700 mt-2">{dueCount}</p>
-              <p className="text-xs text-orange-600 mt-1">{language === "am" ? "ልጆች" : "Children"}</p>
-            </div>
-            <Syringe className="h-10 w-10 text-orange-600 opacity-50" />
-          </div>
-        </Card>
-
-        <Card className="p-6 border-red-200 bg-red-50/50 
-    transition-all duration-300 ease-out
-    hover:shadow-xl hover:shadow-red-200/40
-    hover:-translate-y-1
-    hover:border-red-300
-    group ">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-red-900">{language === "am" ? "ክትባት ያለፈባቸው" : "Overdue Vaccines"}</p>
-              <p className="text-3xl font-bold text-red-700 mt-2">{totalOverdueVaccines}</p>
-
-              <div className="mt-2 space-y-1">
-                {overdueBreakdown.length > 0 ? (
-                  overdueBreakdown.map((item, idx) => (
-                    <p key={idx} className="text-xs text-red-600 font-medium">
-                      {item.name}: {item.count} {language === "am" ? "ክትባቶች" : "vax"}
-                    </p>
-                  ))
-                ) : (
-                  <p className="text-xs text-red-600">{language === "am" ? "ምንም የለም" : "None"}</p>
+        {[
+          {
+            title: language === "am" ? "ሁሉንም የወሰዱ" : "Up to Date",
+            value: upToDateCount,
+            change: language === "am" ? "ልጆች" : "Children",
+            icon: CheckCircle,
+            color: "text-green-600",
+            bgGradient: "from-green-500/10 to-green-600/5",
+            borderColor: "rgb(34 197 94)",
+          },
+          {
+            title: language === "am" ? "ሚገባ" : "Due for Vaccination",
+            value: dueCount,
+            change: language === "am" ? "ልጆች" : "Children",
+            icon: Syringe,
+            color: "text-orange-600",
+            bgGradient: "from-orange-500/10 to-orange-600/5",
+            borderColor: "rgb(251 146 60)",
+          },
+          {
+            title: language === "am" ? "ክትባት ያለፈባቸው" : "Overdue Vaccines",
+            value: totalOverdueVaccines,
+            change: overdueBreakdown.length > 0 
+              ? overdueBreakdown.map(item => `${item.name}: ${item.count}`).join(", ")
+              : (language === "am" ? "ምንም የለም" : "None"),
+            icon: AlertCircle,
+            color: "text-red-600",
+            bgGradient: "from-red-500/10 to-red-600/5",
+            borderColor: "rgb(239 68 68)",
+          },
+        ].map((stat, index) => {
+          const Icon = stat.icon
+          return (
+            <Card
+              key={stat.title}
+              className={cn(
+                "p-6 relative overflow-hidden",
+                "transition-all duration-500 ease-out",
+                "hover:shadow-xl hover:shadow-primary/10 hover:scale-[1.02] hover:-translate-y-1",
+                "border-l-4",
+                isLoading ? "animate-pulse" : "animate-fade-in-up"
+              )}
+              style={{
+                animationDelay: `${index * 100}ms`,
+                borderLeftColor: stat.borderColor,
+              }}
+            >
+              <div
+                className={cn(
+                  "absolute inset-0 bg-gradient-to-br transition-opacity duration-700",
+                  stat.bgGradient,
+                  isLoading ? "opacity-30" : "opacity-100"
                 )}
+              />
+              <div className="relative z-10">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">{stat.title}</p>
+                    <p className="text-3xl font-bold text-foreground mt-2">
+                      {isLoading ? (
+                        <span className="inline-block w-12 h-8 bg-muted rounded animate-pulse" />
+                      ) : (
+                        stat.value.toLocaleString()
+                      )}
+                    </p>
+                    <p className={cn("text-xs mt-1", stat.color === "text-red-600" ? "text-red-600" : "text-muted-foreground")}>
+                      {stat.change}
+                    </p>
+                  </div>
+                  <Icon className={cn("h-10 w-10", stat.color, "opacity-50 drop-shadow-sm transition-transform duration-500 hover:scale-110 hover:rotate-12")} />
+                </div>
               </div>
-            </div>
-            <AlertCircle className="h-10 w-10 text-red-600 opacity-50" />
-          </div>
-        </Card>
+              <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none opacity-0 hover:opacity-100" />
+            </Card>
+          )
+        })}
       </div>
 
       <ParentViewChildren childrenData={children} />
