@@ -58,6 +58,7 @@ pids
 *.seed
 *.pid.lock
 
-# Markdown files (as requested)
+# Markdown files (except README)
 *.md
+!README.md
 *.docx
