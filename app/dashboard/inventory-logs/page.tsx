@@ -8,8 +8,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Activity, Filter, Download, Search, RefreshCw, Clock, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
+import { Activity, Filter, Download, Search, RefreshCw, Clock, ChevronLeft, ChevronRight, Loader2, FileText, FileSpreadsheet, ChevronDown } from "lucide-react"
 import { inventoryApi, type InventoryLog } from "@/lib/inventory-api"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { format } from "date-fns"
 import { t } from "@/lib/translations"
 import { cn } from "@/lib/utils"
@@ -29,6 +37,7 @@ function InventoryLogsContent() {
   const [batchSearch, setBatchSearch] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
+  const [isExporting, setIsExporting] = useState(false)
 
   const fetchLogs = useCallback(async (page = 1) => {
     setIsLoading(true)
@@ -68,43 +77,47 @@ function InventoryLogsContent() {
     fetchLogs(1)
   }, [fetchLogs])
 
-  const handleExportLogs = () => {
-    if (logs.length === 0) return
-
+  const handleExportLogs = async (format: "pdf" | "csv") => {
+    setIsExporting(true)
     try {
-      const headers = ["Timestamp", "Action", "Vaccine", "Batch", "Quantity", "User", "Notes"]
-      const csvContent = [
-        headers.join(","),
-        ...logs.map((log) => [
-          format(new Date(log.created_at), "yyyy-MM-dd HH:mm:ss"),
-          (log as any).type || (log as any).action,
-          (log as any).inventory_item?.vaccine?.name || "Unknown",
-          (log as any).batch_number || "N/A",
-          log.quantity,
-          log.user?.name || "System",
-          (log.notes || "").replace(/,/g, ";")
-        ].join(","))
-      ].join("\n")
+      toast({
+        title: language === "am" ? "ወደ ውጭ በመላክ ላይ..." : "Exporting...",
+        description: language === "am" ? "ሪፖርቱን እያዘጋጀን ነው..." : "Preparing your report...",
+      })
 
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement("a")
-      link.setAttribute("href", url)
-      link.setAttribute("download", `inventory-logs-${format(new Date(), "yyyy-MM-dd")}.csv`)
+      const result = await inventoryApi.downloadInventoryLogsReport(format)
+      
+      const response = await fetch(result.url, {
+        headers: {
+          "Authorization": `Bearer ${result.token}`,
+          "Accept": "application/json",
+        },
+      })
+
+      if (!response.ok) throw new Error("Export failed")
+
+      const blob = await response.blob()
+      const downloadUrl = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = `inventory-logs.${format}`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
+      window.URL.revokeObjectURL(downloadUrl)
 
       toast({
-        title: "Exported",
-        description: "Logs exported to CSV successfully",
+        title: language === "am" ? "ተሳክቷል" : "Success",
+        description: language === "am" ? "ሪፖርቱ በተሳካ ሁኔታ ወርዷል" : "Report downloaded successfully",
       })
     } catch (error) {
       toast({
-        title: "Export Failed",
-        description: "Could not export logs",
+        title: language === "am" ? "ስህተት" : "Error",
+        description: language === "am" ? "ሪፖርቱን ማውረድ አልተቻለም" : "Failed to download report",
         variant: "destructive",
       })
+    } finally {
+      setIsExporting(false)
     }
   }
 
@@ -180,10 +193,27 @@ function InventoryLogsContent() {
               <RefreshCw className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")} />
               Refresh
             </Button>
-            <Button variant="outline" className="flex-1 h-11" onClick={handleExportLogs}>
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="flex-1 h-11" disabled={isExporting}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Export
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Export Format</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => handleExportLogs("csv")}>
+                  <FileSpreadsheet className="mr-2 h-4 w-4" />
+                  <span>CSV</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExportLogs("pdf")}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  <span>PDF</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 

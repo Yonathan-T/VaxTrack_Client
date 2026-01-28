@@ -149,5 +149,26 @@ export const inventoryApi = {
         notes?: string;
     }) => {
         return apiClient.post<{ message: string; data: InventoryItem }>(`/v1/inventory/${id}/wastage`, data);
+    },
+
+    // Download functions for inventory reports
+    downloadInventoryReport: async (format: "pdf" | "csv") => {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null
+        const url = `${process.env.NEXT_PUBLIC_API_URL || "https://vaxtrackapi.onrender.com/api"}/v1/reports/download/inventory?format=${format}`
+        
+        if (token) {
+            return { url, token }
+        }
+        return { url }
+    },
+
+    downloadInventoryLogsReport: async (format: "pdf" | "csv") => {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null
+        const url = `${process.env.NEXT_PUBLIC_API_URL || "https://vaxtrackapi.onrender.com/api"}/v1/reports/download/inventory_logs?format=${format}`
+        
+        if (token) {
+            return { url, token }
+        }
+        return { url }
     }
 };
