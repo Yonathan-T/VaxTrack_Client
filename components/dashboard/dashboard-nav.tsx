@@ -1,34 +1,48 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import Image from "next/image"
-import { usePathname } from "next/navigation"
-import { cn } from "@/lib/utils"
-import { LayoutDashboard, Users, Syringe, Calendar, BarChart3, Package, Settings, LogOut, Bell, User, History, Building, X } from "lucide-react"
-import { useLanguage } from "@/lib/language-context"
-import { useUser } from "@/lib/user-context"
-import { t } from "@/lib/translations"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { logoutParent } from "@/lib/parent-api"
-import { useState } from "react"
-import { useToast } from "@/hooks/use-toast"
-import { useSidebar } from "@/lib/sidebar-context"
+import Link from "next/link";
+import Image from "next/image";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
+import {
+  LayoutDashboard,
+  Users,
+  Syringe,
+  Calendar,
+  BarChart3,
+  Package,
+  Settings,
+  LogOut,
+  Bell,
+  User,
+  History,
+  Building,
+  X,
+} from "lucide-react";
+import { useLanguage } from "@/lib/language-context";
+import { useUser } from "@/lib/user-context";
+import { t } from "@/lib/translations";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { logoutParent } from "@/lib/parent-api";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { useSidebar } from "@/lib/sidebar-context";
 
 interface NavItem {
-  title: string
-  href: string
-  icon: any
-  allowedRoles?: string[]
+  title: string;
+  href: string;
+  icon: any;
+  allowedRoles?: string[];
 }
 
 export function DashboardNav() {
-  const pathname = usePathname()
-  const { language } = useLanguage()
-  const { user, logout } = useUser()
-  const router = useRouter()
-  const { toast } = useToast()
-  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const pathname = usePathname();
+  const { language } = useLanguage();
+  const { user, logout } = useUser();
+  const router = useRouter();
+  const { toast } = useToast();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const getNavItems = (): NavItem[] => {
     const baseItems: NavItem[] = [
@@ -37,99 +51,206 @@ export function DashboardNav() {
         href: "/dashboard",
         icon: LayoutDashboard,
       },
-    ]
+    ];
 
     const roleItems: Record<string, NavItem[]> = {
       healthcare_worker: [
-        { title: t("dashboard.nav.children", language), href: "/dashboard/children", icon: Users },
-        { title: t("dashboard.nav.appointments", language), href: "/dashboard/appointments", icon: Calendar },
-        { title: t("dashboard.nav.inventory", language), href: "/dashboard/inventory", icon: Package },
-        { title: t("dashboard.nav.inventoryLogs", language), href: "/dashboard/inventory-logs", icon: History },
-        { title: t("dashboard.nav.campaigns", language), href: "/dashboard/campaigns", icon: Syringe },
-        { title: t("dashboard.nav.settings", language), href: "/dashboard/settings", icon: Settings },
-      ],
-      woreda_officer: [
-        { title: t("dashboard.nav.reports", language), href: "/dashboard/reports", icon: BarChart3 },
-      ],
-      health_official: [
-        { title: t("dashboard.nav.reports", language), href: "/dashboard/reports", icon: BarChart3 },
-        { title: t("dashboard.nav.inventory", language), href: "/dashboard/inventory", icon: Package },
-        { title: t("dashboard.nav.inventoryLogs", language), href: "/dashboard/inventory-logs", icon: History },
-        { title: t("dashboard.nav.campaigns", language), href: "/dashboard/campaigns", icon: Syringe },
-        { title: t("dashboard.nav.settings", language), href: "/dashboard/settings", icon: Settings },
-      ],
-      admin: (() => {
-        const isLocalAdmin = user?.role === "admin" && ((user as any)?.facility_id != null || (user as any)?.facility != null)
-        const isSuperAdmin = user?.role === "admin" && !isLocalAdmin
-        const items: NavItem[] = []
-        // Common admin features
-        items.push({ title: t("dashboard.nav.children", language), href: "/dashboard/children", icon: Users })
-        // Users should appear right below Children
-        items.push({ title: t("dashboard.nav.users", language), href: "/dashboard/users", icon: Users })
-        // Then the rest
-        items.push({ title: t("dashboard.nav.appointments", language), href: "/dashboard/appointments", icon: Calendar })
-        // Super admin specific: Global Reports
-        if (isSuperAdmin) {
-          items.push({ title: t("dashboard.nav.facilities", language), href: "/dashboard/facilities", icon: Building })
-          items.push({ title: t("dashboard.nav.reports", language), href: "/dashboard/reports", icon: BarChart3 })
-          items.push({ title: t("dashboard.nav.inventory", language), href: "/dashboard/inventory", icon: Package })
-          items.push({ title: t("dashboard.nav.inventoryLogs", language), href: "/dashboard/inventory-logs", icon: History })
-        }
-        // Local admin specific: Inventory for own facility, facility-scoped reports
-        if (isLocalAdmin) {
-          items.push({ title: t("dashboard.nav.inventory", language), href: "/dashboard/inventory", icon: Package })
-          items.push({ title: t("dashboard.nav.inventoryLogs", language), href: "/dashboard/inventory-logs", icon: History })
-          items.push({ title: t("dashboard.nav.reports", language), href: "/dashboard/reports", icon: BarChart3 })
-        }
-        // Always show settings at the end for admin
-        items.push({ title: t("dashboard.nav.settings", language), href: "/dashboard/settings", icon: Settings })
-        return items
-      })(),
-      system_administrator: [
-        { title: t("dashboard.nav.children", language), href: "/dashboard/children", icon: Users },
-        { title: "Users", href: "/dashboard/users", icon: Users },
-        { title: t("dashboard.nav.appointments", language), href: "/dashboard/appointments", icon: Calendar },
-        { title: t("dashboard.nav.reports", language), href: "/dashboard/reports", icon: BarChart3 },
-        { title: t("dashboard.nav.inventory", language), href: "/dashboard/inventory", icon: Package },
+        {
+          title: t("dashboard.nav.children", language),
+          href: "/dashboard/children",
+          icon: Users,
+        },
+        {
+          title: t("dashboard.nav.appointments", language),
+          href: "/dashboard/appointments",
+          icon: Calendar,
+        },
+        {
+          title: t("dashboard.nav.inventory", language),
+          href: "/dashboard/inventory",
+          icon: Package,
+        },
         {
           title: t("dashboard.nav.inventoryLogs", language),
           href: "/dashboard/inventory-logs",
           icon: History,
         },
-        { title: t("dashboard.nav.settings", language), href: "/dashboard/settings", icon: Settings },
+        {
+          title: t("dashboard.nav.campaigns", language),
+          href: "/dashboard/campaigns",
+          icon: Syringe,
+        },
+        {
+          title: t("dashboard.nav.settings", language),
+          href: "/dashboard/settings",
+          icon: Settings,
+        },
+      ],
+      health_official: [
+        {
+          title: t("dashboard.nav.reports", language),
+          href: "/dashboard/reports",
+          icon: BarChart3,
+        },
+        {
+          title: t("dashboard.nav.inventory", language),
+          href: "/dashboard/inventory",
+          icon: Package,
+        },
+        {
+          title: t("dashboard.nav.inventoryLogs", language),
+          href: "/dashboard/inventory-logs",
+          icon: History,
+        },
+        {
+          title: t("dashboard.nav.campaigns", language),
+          href: "/dashboard/campaigns",
+          icon: Syringe,
+        },
+        {
+          title: t("dashboard.nav.settings", language),
+          href: "/dashboard/settings",
+          icon: Settings,
+        },
+      ],
+      admin: (() => {
+        // Super admin has no facility_id, local admin has facility_id
+        // Clean logic: Use the API-provided flags and facility_id
+        const isSuperAdmin = user?.role === "admin" && (user?.is_global === true || !user?.facility_id);
+        const isLocalAdmin = user?.role === "admin" && (user?.is_local === true || !!user?.facility_id);
+        
+        const items: NavItem[] = [];
+
+        // Common admin features
+        items.push({
+          title: t("dashboard.nav.children", language),
+          href: "/dashboard/children",
+          icon: Users,
+        });
+        items.push({
+          title: t("dashboard.nav.users", language),
+          href: "/dashboard/users",
+          icon: Users,
+        });
+        items.push({
+          title: t("dashboard.nav.appointments", language),
+          href: "/dashboard/appointments",
+          icon: Calendar,
+        });
+
+        // Super admin specific: Facilities access
+        if (isSuperAdmin) {
+          items.push({
+            title: t("dashboard.nav.facilities", language),
+            href: "/dashboard/facilities",
+            icon: Building,
+          });
+        }
+
+        // Both admins get inventory, logs, reports
+        items.push({
+          title: t("dashboard.nav.inventory", language),
+          href: "/dashboard/inventory",
+          icon: Package,
+        });
+        items.push({
+          title: t("dashboard.nav.inventoryLogs", language),
+          href: "/dashboard/inventory-logs",
+          icon: History,
+        });
+        items.push({
+          title: t("dashboard.nav.reports", language),
+          href: "/dashboard/reports",
+          icon: BarChart3,
+        });
+
+        // Always show settings at the end
+        items.push({
+          title: t("dashboard.nav.settings", language),
+          href: "/dashboard/settings",
+          icon: Settings,
+        });
+        return items;
+      })(),
+      super_admin: [
+        {
+          title: t("dashboard.nav.children", language),
+          href: "/dashboard/children",
+          icon: Users,
+        },
+        {
+          title: t("dashboard.nav.users", language),
+          href: "/dashboard/users",
+          icon: Users,
+        },
+        {
+          title: t("dashboard.nav.appointments", language),
+          href: "/dashboard/appointments",
+          icon: Calendar,
+        },
+        {
+          title: t("dashboard.nav.facilities", language),
+          href: "/dashboard/facilities",
+          icon: Building,
+        },
+        {
+          title: t("dashboard.nav.reports", language),
+          href: "/dashboard/reports",
+          icon: BarChart3,
+        },
+        {
+          title: t("dashboard.nav.inventory", language),
+          href: "/dashboard/inventory",
+          icon: Package,
+        },
+        {
+          title: t("dashboard.nav.inventoryLogs", language),
+          href: "/dashboard/inventory-logs",
+          icon: History,
+        },
+        {
+          title: t("dashboard.nav.settings", language),
+          href: "/dashboard/settings",
+          icon: Settings,
+        },
       ],
       parent: [
-        { title: t("dashboard.nav.settings", language), href: "/dashboard/settings", icon: Settings },
+        {
+          title: t("dashboard.nav.settings", language),
+          href: "/dashboard/settings",
+          icon: Settings,
+        },
       ],
-    }
+    };
 
-    const role = user?.role as string
-    const navItems = roleItems[role] || []
-    return [...baseItems, ...navItems]
-  }
+    const role = user?.role as string;
+    const navItems = roleItems[role] || [];
+    return [...baseItems, ...navItems];
+  };
 
-  const navItems = getNavItems()
+  const navItems = getNavItems();
 
   const handleLogout = async () => {
-    setIsLoggingOut(true)
+    setIsLoggingOut(true);
     try {
-      await logoutParent()
-      logout()
-      router.push("/")
+      await logoutParent();
+      logout();
+      router.push("/");
     } catch (error) {
-      console.error("Logout error:", error)
-      logout()
-      router.push("/")
+      console.error("Logout error:", error);
+      logout();
+      router.push("/");
       toast({
         title: "Logged out",
-        description: language === "am" ? "ስርዓቱን ተወውቁ" : "You have been logged out",
-      })
+        description:
+          language === "am" ? "ስርዓቱን ተወውቁ" : "You have been logged out",
+      });
     } finally {
-      setIsLoggingOut(false)
+      setIsLoggingOut(false);
     }
-  }
+  };
 
-  const { isCollapsed, mobileMenuOpen, setMobileMenuOpen } = useSidebar()
+  const { isCollapsed, mobileMenuOpen, setMobileMenuOpen } = useSidebar();
 
   return (
     <>
@@ -142,10 +263,12 @@ export function DashboardNav() {
       >
         <div className="space-y-2 overflow-y-auto flex-1 mt-4">
           {navItems.map((item) => {
-            const Icon = item.icon
-            const isActive = item.href === "/dashboard"
-              ? pathname === item.href
-              : pathname === item.href || pathname.startsWith(item.href + "/")
+            const Icon = item.icon;
+            const isActive =
+              item.href === "/dashboard"
+                ? pathname === item.href
+                : pathname === item.href ||
+                  pathname.startsWith(item.href + "/");
 
             return (
               <Link
@@ -162,12 +285,16 @@ export function DashboardNav() {
                 <Icon className="h-5 w-5 flex-shrink-0" />
                 {!isCollapsed && <span>{item.title}</span>}
               </Link>
-            )
+            );
           })}
-
         </div>
 
-        <div className={cn("pt-4 mt-auto border-t border-border", isCollapsed && "flex flex-col items-center")}>
+        <div
+          className={cn(
+            "pt-4 mt-auto border-t border-border",
+            isCollapsed && "flex flex-col items-center",
+          )}
+        >
           {!isCollapsed && (
             <div className="mx-3 mb-3 p-3 rounded-xl bg-muted/50 border border-border/50 hover:bg-muted/80 transition-colors">
               <div className="flex items-center gap-3 mb-2">
@@ -175,15 +302,19 @@ export function DashboardNav() {
                   <User className="h-5 w-5 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground truncate">{user?.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                  <p className="text-sm font-semibold text-foreground truncate">
+                    {user?.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {user?.email}
+                  </p>
                 </div>
               </div>
               {user?.role && (
                 <div className="flex items-center gap-1 mt-2">
                   <div className="h-1.5 w-1.5 rounded-full bg-primary" />
                   <span className="text-xs font-medium text-primary capitalize">
-                    {user.role.replace(/_/g, ' ')}
+                    {user.role.replace(/_/g, " ")}
                   </span>
                 </div>
               )}
@@ -219,12 +350,15 @@ export function DashboardNav() {
       {/* Mobile Menu */}
       <div className="lg:hidden">
         {mobileMenuOpen && (
-          <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
+          <div
+            className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm"
+            onClick={() => setMobileMenuOpen(false)}
+          />
         )}
         <div
           className={cn(
             "fixed top-0 left-0 h-screen w-72 bg-card border-r border-border z-50 transition-transform duration-300 flex flex-col shadow-2xl",
-            mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+            mobileMenuOpen ? "translate-x-0" : "-translate-x-full",
           )}
         >
           {/* Mobile Menu Header */}
@@ -234,7 +368,12 @@ export function DashboardNav() {
                 <Image src="/logo.svg" alt="VaxTrack" width={32} height={32} />
                 <h2 className="text-lg font-bold">VaxTrack</h2>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)} className="rounded-full">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setMobileMenuOpen(false)}
+                className="rounded-full"
+              >
                 <X className="h-5 w-5" />
               </Button>
             </div>
@@ -242,10 +381,12 @@ export function DashboardNav() {
 
           <div className="flex-1 overflow-y-auto p-4 space-y-2">
             {navItems.map((item) => {
-              const Icon = item.icon
-              const isActive = item.href === "/dashboard"
-                ? pathname === item.href
-                : pathname === item.href || pathname.startsWith(item.href + "/")
+              const Icon = item.icon;
+              const isActive =
+                item.href === "/dashboard"
+                  ? pathname === item.href
+                  : pathname === item.href ||
+                    pathname.startsWith(item.href + "/");
 
               return (
                 <Link
@@ -262,7 +403,7 @@ export function DashboardNav() {
                   <Icon className="h-5 w-5 flex-shrink-0" />
                   <span>{item.title}</span>
                 </Link>
-              )
+              );
             })}
           </div>
 
@@ -273,23 +414,27 @@ export function DashboardNav() {
                   <User className="h-5 w-5 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground truncate">{user?.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                  <p className="text-sm font-semibold text-foreground truncate">
+                    {user?.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {user?.email}
+                  </p>
                 </div>
               </div>
               {user?.role && (
                 <div className="flex items-center gap-1 mt-2">
                   <div className="h-1.5 w-1.5 rounded-full bg-primary" />
                   <span className="text-xs font-medium text-primary capitalize">
-                    {user.role.replace(/_/g, ' ')}
+                    {user.role.replace(/_/g, " ")}
                   </span>
                 </div>
               )}
             </div>
             <button
               onClick={() => {
-                setMobileMenuOpen(false)
-                handleLogout()
+                setMobileMenuOpen(false);
+                handleLogout();
               }}
               disabled={isLoggingOut}
               className="flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium text-destructive hover:bg-destructive/10 transition-all disabled:opacity-50 w-full"
@@ -309,6 +454,5 @@ export function DashboardNav() {
         </div>
       </div>
     </>
-  )
+  );
 }
-
