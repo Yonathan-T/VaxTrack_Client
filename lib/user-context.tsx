@@ -17,6 +17,7 @@ export interface User {
   facility_id?: string | number | null
   is_local?: boolean
   is_global?: boolean
+  avatar?: string
 }
 
 interface UserContextType {

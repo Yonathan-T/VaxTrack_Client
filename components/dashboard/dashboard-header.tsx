@@ -193,8 +193,20 @@ export function DashboardHeader() {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <User className="h-5 w-5" />
+              <Button variant="ghost" size="icon" className="relative">
+                {user.avatar ? (
+                  <div className="h-8 w-8 rounded-full overflow-hidden">
+                    <Image 
+                      src={user.avatar} 
+                      alt={user.name} 
+                      width={32} 
+                      height={32} 
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <User className="h-5 w-5" />
+                )}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">

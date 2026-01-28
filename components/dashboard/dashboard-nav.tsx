@@ -298,8 +298,18 @@ export function DashboardNav() {
           {!isCollapsed && (
             <div className="mx-3 mb-3 p-3 rounded-xl bg-muted/50 border border-border/50 hover:bg-muted/80 transition-colors">
               <div className="flex items-center gap-3 mb-2">
-                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <User className="h-5 w-5 text-primary" />
+                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  {user?.avatar ? (
+                    <Image 
+                      src={user.avatar} 
+                      alt={user?.name || "User"} 
+                      width={40} 
+                      height={40} 
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <User className="h-5 w-5 text-primary" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-foreground truncate">
@@ -410,8 +420,18 @@ export function DashboardNav() {
           <div className="p-4 border-t border-border bg-card">
             <div className="p-3 rounded-xl bg-muted/50 border border-border/50 mb-3">
               <div className="flex items-center gap-3 mb-2">
-                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <User className="h-5 w-5 text-primary" />
+                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  {user?.avatar ? (
+                    <Image 
+                      src={user.avatar} 
+                      alt={user?.name || "User"} 
+                      width={40} 
+                      height={40} 
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <User className="h-5 w-5 text-primary" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-foreground truncate">
