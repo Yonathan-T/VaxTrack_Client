@@ -106,7 +106,7 @@ export default function FacilitiesPage() {
         if (!editingFacility) return
         setIsCreating(true)
         try {
-            const { error } = await updateFacility(editingFacility.id, formData as any)
+            const { error } = await updateFacility(String(editingFacility.id), formData as any)
             if (error) {
                 toast({
                     title: "Error",
@@ -232,7 +232,7 @@ export default function FacilitiesPage() {
                                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => startEdit(f)}>
                                         <Pencil className="h-4 w-4" />
                                     </Button>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setIsDeleting(f.id)}>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setIsDeleting(String(f.id))}>
                                         <Trash2 className="h-4 w-4" />
                                     </Button>
                                 </div>
@@ -248,6 +248,12 @@ export default function FacilitiesPage() {
                                     <Users className="h-3.5 w-3.5" />
                                     <span>Daily Capacity: {f.daily_capacity}</span>
                                 </div>
+                                {f.users_count !== undefined && (
+                                    <div className="flex items-center text-sm text-muted-foreground gap-2">
+                                        <Users className="h-3.5 w-3.5" />
+                                        <span>Staff Members: {f.users_count}</span>
+                                    </div>
+                                )}
                                 <div className="mt-4">
                                     <Badge variant="outline" className="text-[10px] uppercase font-bold tracking-widest text-primary border-primary/20">
                                         ID: {f.id}
