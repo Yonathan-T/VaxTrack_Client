@@ -31,12 +31,18 @@ export default function SocialCallbackPage() {
         const response = await apiClient.get("/v1/user")
         
         if (response.data) {
+          const userData = response.data as any
           setUser({
-            id: (response.data as any).id,
-            email: (response.data as any).email,
-            name: (response.data as any).name,
-            role: (response.data as any).role,
-            facility: (response.data as any).facility,
+            id: userData.id,
+            email: userData.email,
+            name: userData.name,
+            role: userData.role,
+            phone: userData.phone,
+            facility: userData.facility,
+            facility_id: userData.facility_id,
+            is_local: userData.is_local,
+            is_global: userData.is_global,
+            avatar: userData.avatar,
           })
           
           // Redirect to dashboard

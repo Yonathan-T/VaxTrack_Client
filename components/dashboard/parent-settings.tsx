@@ -131,13 +131,22 @@ export function ParentSettings() {
                                         {language === "am" ? "ስልክ ቁጥር" : "Phone Number"}
                                     </div>
                                 </Label>
-                                <Input
-                                    id="phone"
-                                    type="tel"
-                                    value={formData.phone}
-                                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                    placeholder={language === "am" ? "ስልክ ቁጥርዎን ያስገቡ" : "Enter your phone number"}
-                                />
+                                {user?.phone ? (
+                                    <div className="p-3 bg-muted/50 rounded-lg border">
+                                        <p className="text-sm font-medium text-foreground">{user.phone}</p>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            {language === "am" ? "የተመዘገበ ስልክ ቁጥር" : "Registered phone number"}
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <Input
+                                        id="phone"
+                                        type="tel"
+                                        value={formData.phone}
+                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                        placeholder={language === "am" ? "ስልክ ቁጥርዎን ያስገቡ" : "Enter your phone number"}
+                                    />
+                                )}
                             </div>
 
                             <div className="pt-4 border-t">
