@@ -94,7 +94,7 @@ export default function ReportsPage() {
     fetchData()
   }, [toast])
 
-  const handleDownload = async (reportType: "coverage" | "overdue_summary" | "user_list", format: "csv" | "pdf") => {
+  const handleDownload = async (reportType: "coverage" | "overdue_summary" | "user_list", format: "csv" | "pdf" | "xlsx") => {
     try {
       toast({
         title: language === "am" ? "ወደ ውጭ በመላክ ላይ..." : "Exporting...",
@@ -116,7 +116,7 @@ export default function ReportsPage() {
       const downloadUrl = window.URL.createObjectURL(blob)
       const link = document.createElement("a")
       link.href = downloadUrl
-      link.setAttribute("download", `${reportType}_report_${new Date().toISOString().split('T')[0]}.${format === 'csv' ? 'csv' : 'pdf'}`)
+      link.setAttribute("download", `${reportType}_report_${new Date().toISOString().split('T')[0]}.${format === 'csv' ? 'csv' : format === 'xlsx' ? 'xlsx' : 'pdf'}`)
       document.body.appendChild(link)
       link.click()
       link.parentNode?.removeChild(link)
@@ -173,6 +173,10 @@ export default function ReportsPage() {
                 <FileSpreadsheet className="mr-2 h-4 w-4" />
                 <span>CSV</span>
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleDownload("coverage", "xlsx")}>
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                <span>Excel</span>
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleDownload("coverage", "pdf")}>
                 <FileText className="mr-2 h-4 w-4" />
                 <span>PDF</span>
@@ -186,6 +190,10 @@ export default function ReportsPage() {
                 <FileSpreadsheet className="mr-2 h-4 w-4" />
                 <span>CSV</span>
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleDownload("overdue_summary", "xlsx")}>
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                <span>Excel</span>
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleDownload("overdue_summary", "pdf")}>
                 <FileText className="mr-2 h-4 w-4" />
                 <span>PDF</span>
@@ -198,6 +206,10 @@ export default function ReportsPage() {
               <DropdownMenuItem onClick={() => handleDownload("user_list", "csv")}>
                 <FileSpreadsheet className="mr-2 h-4 w-4" />
                 <span>CSV</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleDownload("user_list", "xlsx")}>
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                <span>Excel</span>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleDownload("user_list", "pdf")}>
                 <FileText className="mr-2 h-4 w-4" />

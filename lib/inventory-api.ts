@@ -152,7 +152,7 @@ export const inventoryApi = {
     },
 
     // Download functions for inventory reports
-    downloadInventoryReport: async (format: "pdf" | "csv") => {
+    downloadInventoryReport: async (format: "pdf" | "csv" | "xlsx") => {
         const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null
         const url = `${process.env.NEXT_PUBLIC_API_URL || "https://vaxtrackapi.onrender.com/api"}/v1/reports/download/inventory?format=${format}`
         
@@ -162,7 +162,7 @@ export const inventoryApi = {
         return { url }
     },
 
-    downloadInventoryLogsReport: async (format: "pdf" | "csv") => {
+    downloadInventoryLogsReport: async (format: "pdf" | "csv" | "xlsx") => {
         const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null
         const url = `${process.env.NEXT_PUBLIC_API_URL || "https://vaxtrackapi.onrender.com/api"}/v1/reports/download/inventory_logs?format=${format}`
         

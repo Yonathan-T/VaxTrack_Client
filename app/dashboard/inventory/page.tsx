@@ -78,7 +78,7 @@ export default function InventoryPage() {
   const [isWastageOpen, setIsWastageOpen] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
 
-  const handleExport = async (format: "pdf" | "csv") => {
+  const handleExport = async (format: "pdf" | "csv" | "xlsx") => {
     setIsExporting(true)
     try {
       toast({
@@ -148,6 +148,10 @@ export default function InventoryPage() {
                 <DropdownMenuItem onClick={() => handleExport("csv")}>
                   <FileSpreadsheet className="mr-2 h-4 w-4" />
                   <span>CSV</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport("xlsx")}>
+                  <FileSpreadsheet className="mr-2 h-4 w-4" />
+                  <span>Excel</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleExport("pdf")}>
                   <FileText className="mr-2 h-4 w-4" />
