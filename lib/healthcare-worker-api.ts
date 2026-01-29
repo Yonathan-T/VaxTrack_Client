@@ -299,11 +299,22 @@ export async function addStock(data: {
   batch_number: string;
   quantity: number;
   expiry_date: string;
-  supplier?: string;
-  notes?: string;
 }) {
-  // Note: facility_id is automatically taken from the logged-in user's facility
-  return apiClient.post("/v1/inventory/receive", data);
+  return apiClient.post(`/v1/inventory/receive`, data);
+}
+
+export async function registerParent(data: {
+  name: string;
+  phone: string;
+  password: string;
+  password_confirmation: string;
+  email?: string;
+}) {
+  return apiClient.post<{ 
+    success: boolean; 
+    message: string; 
+    data: { parent: { id: number; name: string; email: string; phone: string; role: string } } 
+  }>("/v1/nurses/register-parent", data);
 }
 
 export async function getTodayDue() {

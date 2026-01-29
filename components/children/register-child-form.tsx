@@ -7,11 +7,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle, Loader2 } from 'lucide-react'
+import { AlertCircle, Loader2, UserPlus } from 'lucide-react'
 import { useLanguage } from "@/lib/language-context"
 import { t } from "@/lib/translations"
 import { registerNewChild } from "@/lib/healthcare-worker-api"
 import { useToast } from "@/hooks/use-toast"
+import { RegisterParentModal } from "./register-parent-modal"
 
 export function RegisterChildForm() {
   const router = useRouter()
@@ -36,6 +37,11 @@ export function RegisterChildForm() {
     houseNumber: "",
   })
 
+  const handleParentRegistered = (parentPhone: string) => {
+    // Update the guardian phone field with the newly registered parent's phone
+    setFormData({ ...formData, guardianPhone: parentPhone })
+  }
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError("")
@@ -47,12 +53,18 @@ export function RegisterChildForm() {
       !formData.dateOfBirth ||
       !formData.gender ||
       !formData.relationship ||
-      !formData.guardianEmail ||
       !formData.address ||
       !formData.kebele ||
       !formData.woreda
     ) {
       setError(t("form.fillRequiredFields", language))
+      setLoading(false)
+      return
+    }
+
+    // Validate that at least one of guardian phone or email is provided
+    if (!formData.guardianPhone && !formData.guardianEmail) {
+      setError("Please provide either guardian phone number or email address")
       setLoading(false)
       return
     }
@@ -74,12 +86,14 @@ export function RegisterChildForm() {
         address: formData.address,
         kebele: formData.kebele,
         woreda: formData.woreda,
-        parent_email: formData.guardianEmail,
       }
+
+      // Only include parent fields if they are provided
+      if (formData.guardianPhone) payload.parent_phone = formData.guardianPhone
+      if (formData.guardianEmail) payload.parent_email = formData.guardianEmail
 
       if (formData.placeOfBirth) payload.place_of_birth = formData.placeOfBirth
       if (formData.houseNumber) payload.house_number = formData.houseNumber
-      if (formData.guardianPhone) payload.parent_phone = formData.guardianPhone
 
       // Debug: log payload being sent
       try {
@@ -228,27 +242,42 @@ export function RegisterChildForm() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="guardianPhone">Guardian Phone Number (Optional)</Label>
-            <Input
-              id="guardianPhone"
-              type="tel"
-              placeholder="+251911234567"
-              value={formData.guardianPhone}
-              onChange={(e) => setFormData({ ...formData, guardianPhone: e.target.value })}
-            />
+            <Label htmlFor="guardianPhone">Guardian Phone Number</Label>
+            <div className="flex gap-2">
+              <Input
+                id="guardianPhone"
+                type="tel"
+                placeholder="+251911234567"
+                value={formData.guardianPhone}
+                onChange={(e) => setFormData({ ...formData, guardianPhone: e.target.value })}
+                className="flex-1"
+              />
+              <RegisterParentModal onParentRegistered={handleParentRegistered}>
+                <Button type="button" variant="outline" size="sm">
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  New Parent
+                </Button>
+              </RegisterParentModal>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Enter the parent's registered phone number or register a new parent
+            </p>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="guardianEmail">
-              Guardian Email *
+              Guardian Email (Optional)
             </Label>
             <Input
               id="guardianEmail"
               type="email"
               value={formData.guardianEmail}
               onChange={(e) => setFormData({ ...formData, guardianEmail: e.target.value })}
-              required
+              placeholder="parent@example.com"
             />
+            <p className="text-xs text-muted-foreground">
+              Provide the parent's registered phone number and/or email for searching
+            </p>
           </div>
         </div>
       </div>
