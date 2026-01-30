@@ -57,7 +57,7 @@ export function RegisterParentModal({ onParentRegistered, children }: RegisterPa
     }
 
     if (formData.password !== formData.passwordConfirmation) {
-      setError("Passwords do not match")
+      setError(t("form.passwordsDoNotMatch", language))
       setLoading(false)
       return
     }
@@ -85,7 +85,7 @@ export function RegisterParentModal({ onParentRegistered, children }: RegisterPa
 
       toast({
         title: t("form.success" as any, language) || "Success",
-        description: "Parent registered successfully",
+        description: t("form.parentRegisteredSuccess", language),
       })
 
       // Pass the phone number back to the child form
@@ -132,9 +132,9 @@ export function RegisterParentModal({ onParentRegistered, children }: RegisterPa
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Register New Parent</DialogTitle>
+          <DialogTitle>{t("form.registerParentTitle", language)}</DialogTitle>
           <DialogDescription>
-            Register a new parent in the system. They will be linked to the child you're registering.
+            {t("form.registerParentDescription", language)}
           </DialogDescription>
         </DialogHeader>
         
@@ -147,7 +147,7 @@ export function RegisterParentModal({ onParentRegistered, children }: RegisterPa
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="parentName">Full Name *</Label>
+            <Label htmlFor="parentName">{t("form.parentName", language)} *</Label>
             <Input
               id="parentName"
               value={formData.name}
@@ -158,7 +158,7 @@ export function RegisterParentModal({ onParentRegistered, children }: RegisterPa
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="parentPhone">Phone Number *</Label>
+            <Label htmlFor="parentPhone">{t("form.parentPhone", language)} *</Label>
             <Input
               id="parentPhone"
               type="tel"
@@ -170,7 +170,7 @@ export function RegisterParentModal({ onParentRegistered, children }: RegisterPa
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="parentEmail">Email (Optional)</Label>
+            <Label htmlFor="parentEmail">{t("form.parentEmail", language)}</Label>
             <Input
               id="parentEmail"
               type="email"
@@ -181,7 +181,7 @@ export function RegisterParentModal({ onParentRegistered, children }: RegisterPa
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="parentPassword">Password *</Label>
+            <Label htmlFor="parentPassword">{t("form.password", language)} *</Label>
             <Input
               id="parentPassword"
               type="password"
@@ -193,7 +193,7 @@ export function RegisterParentModal({ onParentRegistered, children }: RegisterPa
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="parentPasswordConfirmation">Confirm Password *</Label>
+            <Label htmlFor="parentPasswordConfirmation">{t("form.confirmPassword", language)} *</Label>
             <Input
               id="parentPasswordConfirmation"
               type="password"
@@ -212,12 +212,12 @@ export function RegisterParentModal({ onParentRegistered, children }: RegisterPa
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Registering...
+                  {t("form.registeringParent", language)}
                 </>
               ) : (
                 <>
                   <UserPlus className="h-4 w-4 mr-2" />
-                  Register Parent
+                  {t("form.registerParent", language)}
                 </>
               )}
             </Button>

@@ -64,7 +64,7 @@ export function RegisterChildForm() {
 
     // Validate that at least one of guardian phone or email is provided
     if (!formData.guardianPhone && !formData.guardianEmail) {
-      setError("Please provide either guardian phone number or email address")
+      setError(t("form.provideContactInfo", language))
       setLoading(false)
       return
     }
@@ -146,11 +146,11 @@ export function RegisterChildForm() {
       )}
 
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-foreground">Child Information</h3>
+        <h3 className="text-lg font-semibold text-foreground">{t("form.childInformation", language)}</h3>
 
         <div className="grid md:grid-cols-3 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="firstName">First Name *</Label>
+            <Label htmlFor="firstName">{t("form.firstName", language)} *</Label>
             <Input
               id="firstName"
               value={formData.firstName}
@@ -160,7 +160,7 @@ export function RegisterChildForm() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="lastName">Last Name *</Label>
+            <Label htmlFor="lastName">{t("form.lastName", language)} *</Label>
             <Input
               id="lastName"
               value={formData.lastName}
@@ -172,7 +172,7 @@ export function RegisterChildForm() {
 
         <div className="grid md:grid-cols-3 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="dateOfBirth">Date of Birth *</Label>
+            <Label htmlFor="dateOfBirth">{t("form.dateOfBirth", language)} *</Label>
             <Input
               id="dateOfBirth"
               type="date"
@@ -183,20 +183,20 @@ export function RegisterChildForm() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="gender">Gender *</Label>
+            <Label htmlFor="gender">{t("form.gender", language)} *</Label>
             <Select value={formData.gender} onValueChange={(value) => setFormData({ ...formData, gender: value })}>
               <SelectTrigger>
-                <SelectValue placeholder="Select gender" />
+                <SelectValue placeholder={t("form.selectGender", language)} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="male">Male</SelectItem>
-                <SelectItem value="female">Female</SelectItem>
+                <SelectItem value="male">{t("form.male", language)}</SelectItem>
+                <SelectItem value="female">{t("form.female", language)}</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="birthWeight">Birth Weight (kg)</Label>
+            <Label htmlFor="birthWeight">{t("form.birthWeight", language)}</Label>
             <Input
               id="birthWeight"
               type="number"
@@ -208,7 +208,7 @@ export function RegisterChildForm() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="placeOfBirth">Place of Birth</Label>
+          <Label htmlFor="placeOfBirth">{t("form.placeOfBirth", language)}</Label>
           <Input
             id="placeOfBirth"
             value={formData.placeOfBirth}
@@ -218,31 +218,31 @@ export function RegisterChildForm() {
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-foreground">Guardian Information</h3>
+        <h3 className="text-lg font-semibold text-foreground">{t("form.guardianInformation", language)}</h3>
 
         <div className="grid md:grid-cols-3 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="relationship">Relationship to Child *</Label>
+            <Label htmlFor="relationship">{t("form.selectRelationship", language)} *</Label>
             <Select
               value={formData.relationship}
               onValueChange={(value) => setFormData({ ...formData, relationship: value })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select relationship" />
+                <SelectValue placeholder={t("form.selectRelationship", language)} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Mother">Mother</SelectItem>
-                <SelectItem value="Father">Father</SelectItem>
-                <SelectItem value="Grandmother">Grandmother</SelectItem>
-                <SelectItem value="Grandfather">Grandfather</SelectItem>
+                <SelectItem value="Mother">{t("form.mother", language)}</SelectItem>
+                <SelectItem value="Father">{t("form.father", language)}</SelectItem>
+                <SelectItem value="Grandmother">{t("form.grandmother", language)}</SelectItem>
+                <SelectItem value="Grandfather">{t("form.grandfather", language)}</SelectItem>
                 <SelectItem value="Brother">Brother</SelectItem>
-                <SelectItem value="Guardian">Guardian</SelectItem>
+                <SelectItem value="Guardian">{t("form.other", language)}</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="guardianPhone">Guardian Phone Number</Label>
+            <Label htmlFor="guardianPhone">{t("form.guardianPhone", language)}</Label>
             <div className="flex gap-2">
               <Input
                 id="guardianPhone"
@@ -255,18 +255,18 @@ export function RegisterChildForm() {
               <RegisterParentModal onParentRegistered={handleParentRegistered}>
                 <Button type="button" variant="outline" size="sm">
                   <UserPlus className="h-4 w-4 mr-2" />
-                  New Parent
+                  {t("form.newParent", language)}
                 </Button>
               </RegisterParentModal>
             </div>
             <p className="text-xs text-muted-foreground">
-              Enter the parent's registered phone number or register a new parent
+              {t("form.guardianPhoneHint", language)}
             </p>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="guardianEmail">
-              Guardian Email (Optional)
+              {t("form.guardianEmail", language)}
             </Label>
             <Input
               id="guardianEmail"
@@ -276,18 +276,18 @@ export function RegisterChildForm() {
               placeholder="parent@example.com"
             />
             <p className="text-xs text-muted-foreground">
-              Provide the parent's registered phone number and/or email for searching
+              {t("form.guardianEmailHint", language)}
             </p>
           </div>
         </div>
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-foreground">Address Information</h3>
+        <h3 className="text-lg font-semibold text-foreground">{t("form.addressInformation", language)}</h3>
 
         <div className="grid md:grid-cols-3 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="kebele">Kebele *</Label>
+            <Label htmlFor="kebele">{t("form.kebele", language)} *</Label>
             <Input
               id="kebele"
               value={formData.kebele}
@@ -297,7 +297,7 @@ export function RegisterChildForm() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="woreda">Woreda *</Label>
+            <Label htmlFor="woreda">{t("form.woreda", language)} *</Label>
             <Input
               id="woreda"
               value={formData.woreda}
@@ -317,7 +317,7 @@ export function RegisterChildForm() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="houseNumber">House Number</Label>
+            <Label htmlFor="houseNumber">{t("form.houseNumber", language)}</Label>
             <Input
               id="houseNumber"
               value={formData.houseNumber}
@@ -332,14 +332,14 @@ export function RegisterChildForm() {
           {loading ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Registering...
+              {t("form.registering", language)}...
             </>
           ) : (
-            "Register Child"
+            t("form.registerChild", language)
           )}
         </Button>
         <Button type="button" variant="outline" onClick={() => router.back()}>
-          Cancel
+          {t("common.cancel", language)}
         </Button>
       </div>
     </form>
