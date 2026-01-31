@@ -8,9 +8,9 @@ import { useState, useEffect } from "react"
 import { useLanguage } from "@/lib/language-context"
 import { useUser } from "@/lib/user-context"
 import { t } from "@/lib/translations"
-import { getChildProfile, type ChildProfile } from "@/lib/healthcare-worker-api"
+import { getChildProfile, getAppointmentsForChild, type ChildProfile, type Appointment } from "@/lib/healthcare-worker-api"
 import { RecordVaccinationModal } from "./record-vaccination-modal"
-import { ScheduleAppointmentModal } from "./schedule-appointment-modal"
+import { RescheduleAppointmentModal } from "./reschedule-appointment-modal"
 import { useToast } from "@/hooks/use-toast"
 
 export function VaccinationHistory({ childId }: { childId: string }) {
@@ -18,9 +18,10 @@ export function VaccinationHistory({ childId }: { childId: string }) {
   const { toast } = useToast()
   const { user } = useUser()
   const [isRecordOpen, setIsRecordOpen] = useState(false)
-  const [isScheduleOpen, setIsScheduleOpen] = useState(false)
+  const [isRescheduleOpen, setIsRescheduleOpen] = useState(false)
   const [selectedVaccine, setSelectedVaccine] = useState<any>(null)
   const [childData, setChildData] = useState<ChildProfile | null>(null)
+  const [appointments, setAppointments] = useState<Appointment[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedVaccinationRecord, setSelectedVaccinationRecord] = useState<any>(null)
 
@@ -41,46 +42,71 @@ export function VaccinationHistory({ childId }: { childId: string }) {
     return `${years} year${years > 1 ? "s" : ""} old`
   }
 
-  useEffect(() => {
-    const fetchChildData = async () => {
-      try {
-        setIsLoading(true)
-        const response = await getChildProfile(childId)
+  const fetchChildData = async () => {
+    try {
+      setIsLoading(true)
+      const [childResponse, appointmentsResponse] = await Promise.all([
+        getChildProfile(childId),
+        getAppointmentsForChild(childId)
+      ])
 
-        if (response.error) {
-          toast({
-            title: "Error",
-            description: response.error.message || "Failed to load vaccination history",
-            variant: "destructive",
-          })
-          return
-        }
-
-        if (response.data) {
-          setChildData(response.data as any)
-        }
-      } catch (error) {
-        console.error("[VaccinationHistory] Error:", error)
+      if (childResponse.error) {
         toast({
           title: "Error",
-          description: "Failed to load vaccination history",
+          description: childResponse.error.message || "Failed to load vaccination history",
           variant: "destructive",
         })
-      } finally {
-        setIsLoading(false)
+        return
       }
-    }
 
+      if (childResponse.data) {
+        setChildData(childResponse.data as any)
+      }
+
+      if (appointmentsResponse.data) {
+        const appointmentsData = appointmentsResponse.data as any
+        // The API client already extracts the 'data' field, so appointmentsData is the array
+        setAppointments(Array.isArray(appointmentsData) ? appointmentsData : [])
+      }
+    } catch (error) {
+      console.error("[VaccinationHistory] Error:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load vaccination history",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
     fetchChildData()
   }, [childId, toast])
 
-  const completedVaccinations = childData?.vaccination_records?.filter(
+  // Extract vaccination records from appointments
+  const allVaccinationRecords = appointments.flatMap(apt => apt.vaccination_records || [])
+
+  const completedVaccinations = allVaccinationRecords.filter(
     (record: any) => (record as any).status === "completed" && (((record as any).date_administered) || ((record as any).dateAdministered)),
   ) || []
 
-  const dueVaccinations = childData?.vaccination_records?.filter(
+  const dueVaccinations = allVaccinationRecords.filter(
     (record: any) => (record as any).status === "scheduled" || (record as any).status === "overdue",
   ) || []
+
+  // Function to determine if a vaccination is actually overdue
+  const isVaccinationOverdue = (record: any) => {
+    const scheduledDate = record.scheduled_at || record.due_date || record.scheduled_date
+    if (!scheduledDate) return false
+    
+    const scheduled = new Date(scheduledDate)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0) // Set to start of day for fair comparison
+    scheduled.setHours(0, 0, 0, 0)
+    
+    return scheduled < today
+  }
 
   const handleRecordVaccination = (vaccinationRecord: any) => {
     setSelectedVaccinationRecord(vaccinationRecord)
@@ -88,8 +114,45 @@ export function VaccinationHistory({ childId }: { childId: string }) {
   }
 
   const handleSchedule = (vaccine: any) => {
+    console.log("[VaccinationHistory] handleSchedule called with vaccine:", vaccine)
+    console.log("[VaccinationHistory] Available appointments:", appointments)
+    
     setSelectedVaccine(vaccine)
-    setIsScheduleOpen(true)
+    
+    // Find the appointment that contains this vaccination record
+    const parentAppointment = appointments.find(apt => 
+      apt.vaccination_records?.some((record: any) => record.id === vaccine.id)
+    )
+    
+    console.log("[VaccinationHistory] Found parent appointment:", parentAppointment)
+    
+    if (parentAppointment) {
+      setSelectedVaccine(parentAppointment)
+      setIsRescheduleOpen(true)
+    } else {
+      toast({
+        title: "Error",
+        description: "Could not find the appointment for this vaccination",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Format date with better display
+  const formatVaccinationDate = (record: any) => {
+    const scheduledDateField = record.scheduled_at || record.due_date || record.scheduled_date
+    if (!scheduledDateField) return null
+    
+    const date = new Date(scheduledDateField)
+    
+    // Format Gregorian date
+    const gregorianDate = date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short", 
+      day: "numeric"
+    })
+    
+    return gregorianDate
   }
 
   if (isLoading) {
@@ -239,14 +302,8 @@ export function VaccinationHistory({ childId }: { childId: string }) {
           ) : (
             <div className="space-y-3">
               {dueVaccinations.map((record: any) => {
-                const scheduledDate = (record as any).scheduled_date || (record as any).scheduledDate
-                  ? new Date((record as any).scheduled_date || (record as any).scheduledDate).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })
-                  : "-"
-                const isOverdue = (record as any).status === "overdue"
+                const scheduledDate = formatVaccinationDate(record)
+                const isOverdue = isVaccinationOverdue(record)
 
                 return (
                   <div
@@ -295,11 +352,13 @@ export function VaccinationHistory({ childId }: { childId: string }) {
                           variant={isOverdue ? "default" : "outline"}
                           onClick={() => handleRecordVaccination(record)}
                         >
-                          Record Now
+                          {isOverdue ? "Administer Now" : "Record Now"}
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => handleSchedule(record)}>
-                          Reschedule
-                        </Button>
+                        {!isOverdue && (
+                          <Button size="sm" variant="outline" onClick={() => handleSchedule(record)}>
+                            Reschedule
+                          </Button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -319,10 +378,11 @@ export function VaccinationHistory({ childId }: { childId: string }) {
         childId={childId}
         vaccinationRecord={selectedVaccinationRecord}
       />
-      <ScheduleAppointmentModal
-        isOpen={isScheduleOpen}
-        onClose={() => setIsScheduleOpen(false)}
-        vaccine={selectedVaccine}
+      <RescheduleAppointmentModal
+        isOpen={isRescheduleOpen}
+        onClose={() => setIsRescheduleOpen(false)}
+        appointment={selectedVaccine}
+        onSuccess={fetchChildData}
       />
     </>
   )

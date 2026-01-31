@@ -97,6 +97,8 @@ export interface Appointment {
   notes?: string;
   created_at?: string;
   updated_at?: string;
+  ethiopian_time?: string;
+  visit_number?: number;
 }
 
 export interface VaccinationRecord {
@@ -231,14 +233,17 @@ export async function updateAppointment(
 
 export async function rescheduleAppointment(
   appointmentId: string | number,
-  newDate: string,
-  newTime?: string
+  data: {
+    scheduled_at: string;
+    rescheduled_reason: string;
+    cascade: boolean;
+  }
 ) {
-  const scheduledDate = newTime ? `${newDate} ${newTime}` : newDate;
-  return apiClient.put(`/v1/appointments/${appointmentId}`, {
-    scheduled_date: scheduledDate,
-    status: "rescheduled",
-  });
+  return apiClient.put<{
+    success: boolean;
+    message: string;
+    data: Appointment;
+  }>(`/v1/appointments/${appointmentId}`, data);
 }
 
 export async function cancelAppointment(appointmentId: string | number) {
@@ -319,4 +324,31 @@ export async function registerParent(data: {
 
 export async function getTodayDue() {
   return apiClient.get<TodayDueResponse>("/v1/nurse/today-due");
+}
+
+export async function getAppointmentsForChild(childId: string) {
+  return apiClient.get(`/v1/children/${childId}/appointments`);
+}
+
+export async function getSuggestedSlots(appointmentId: string | number) {
+  return apiClient.get(`/v1/appointments/${appointmentId}/suggest-slots`);
+}
+
+// Vaccination status endpoint
+export async function getChildVaccinationStatus(childId: string) {
+  return apiClient.get(`/v1/children/${childId}/vaccination-status`);
+}
+
+// Nurse queue session management
+export async function startVaccinationSession(appointmentId: string | number) {
+  return apiClient.post(`/v1/appointments/${appointmentId}/start-session`);
+}
+
+export async function completeVaccinationSession(appointmentId: string | number) {
+  return apiClient.post(`/v1/appointments/${appointmentId}/complete-session`);
+}
+
+// Get queue (appointments with queue=true)
+export async function getNurseQueue() {
+  return apiClient.get("/v1/appointments?queue=true");
 }

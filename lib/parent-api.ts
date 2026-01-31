@@ -70,6 +70,15 @@ export async function getChildDetails(childId: string) {
   return apiClient.get<Child>(`/v1/children/${childId}`)
 }
 
+export async function getChildAppointments(childId: string) {
+  return apiClient.get<{
+    success: boolean;
+    child: string;
+    count: number;
+    data: any[];
+  }>(`/v1/children/${childId}/appointments`)
+}
+
 export async function registerChild(childData: {
   name: string
   dateOfBirth: string

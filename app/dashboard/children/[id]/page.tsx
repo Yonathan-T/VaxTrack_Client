@@ -2,6 +2,7 @@
 
 import { ChildProfile } from "@/components/children/child-profile"
 import { VaccinationHistory } from "@/components/children/vaccination-history"
+import { ChildAppointments } from "@/components/children/child-appointments"
 import { ParentChildDetails } from "@/components/dashboard/parent-child-details"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from 'lucide-react'
@@ -42,6 +43,7 @@ export default function ChildDetailPage({ params: paramsPromise }: { params: Pro
         <div className="space-y-6">
           <ChildProfile childId={params.id} />
           <VaccinationHistory childId={params.id} />
+          <ChildAppointments childId={params.id} />
         </div>
       )}
     </div>

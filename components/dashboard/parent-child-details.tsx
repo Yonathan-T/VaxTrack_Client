@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Calendar, CheckCircle2, AlertCircle, Info, MapPin, ClipboardList, Loader2, User } from "lucide-react"
 import { useLanguage } from "@/lib/language-context"
 import { t } from "@/lib/translations"
-import { getChildDetails, type Child } from "@/lib/parent-api"
+import { getChildDetails, getChildAppointments, type Child } from "@/lib/parent-api"
 
 interface ParentChildDetailsProps {
   childId: string
@@ -16,6 +16,7 @@ interface ParentChildDetailsProps {
 export function ParentChildDetails({ childId }: ParentChildDetailsProps) {
   const { language } = useLanguage()
   const [child, setChild] = useState<Child | null>(null)
+  const [appointments, setAppointments] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -23,11 +24,21 @@ export function ParentChildDetails({ childId }: ParentChildDetailsProps) {
     const fetchDetails = async () => {
       setIsLoading(true)
       try {
-        const { data, error } = await getChildDetails(childId)
-        if (error) {
-          setError(error.message)
-        } else if (data) {
-          setChild(data)
+        const [childResponse, appointmentsResponse] = await Promise.all([
+          getChildDetails(childId),
+          getChildAppointments(childId)
+        ])
+
+        if (childResponse.error) {
+          setError(childResponse.error.message)
+        } else if (childResponse.data) {
+          setChild(childResponse.data)
+        }
+
+        if (appointmentsResponse.data) {
+          const appointmentsData = appointmentsResponse.data as any
+          // The API client already extracts the 'data' field, so appointmentsData is the array
+          setAppointments(Array.isArray(appointmentsData) ? appointmentsData : [])
         }
       } catch (err) {
         setError("Failed to fetch child details")
@@ -199,7 +210,7 @@ export function ParentChildDetails({ childId }: ParentChildDetailsProps) {
             </div>
 
             <div className="space-y-4">
-              {(!child.appointments || child.appointments.length === 0) ? (
+              {appointments.length === 0 ? (
                 <div className="text-center py-10 bg-muted/20 rounded-xl border border-dashed border-border">
                   <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
                   <p className="text-muted-foreground">
@@ -207,7 +218,7 @@ export function ParentChildDetails({ childId }: ParentChildDetailsProps) {
                   </p>
                 </div>
               ) : (
-                child.appointments.map((apt) => (
+                appointments.map((apt) => (
                   <div key={apt.id} className="p-4 rounded-xl border border-border bg-card flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
                       <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
@@ -215,16 +226,29 @@ export function ParentChildDetails({ childId }: ParentChildDetailsProps) {
                       </div>
                       <div>
                         <p className="font-bold text-foreground">
-                          {new Date(apt.appointment_date).toLocaleDateString()} at {new Date(apt.appointment_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {apt.scheduled_at ? new Date(apt.scheduled_at).toLocaleDateString() : new Date(apt.appointment_date || '').toLocaleDateString()} 
+                          {apt.scheduled_at && ` at ${new Date(apt.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
                         </p>
                         <p className="text-sm text-muted-foreground italic">
                           {apt.notes || (language === "am" ? "ምንም ማስታወሻ የለም" : "No notes from health worker")}
                         </p>
+                        {apt.ethiopian_time && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Ethiopian Time: {apt.ethiopian_time}
+                          </p>
+                        )}
                       </div>
                     </div>
-                    <Badge variant="outline" className="w-fit">
-                      {apt.status}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="w-fit">
+                        {apt.status}
+                      </Badge>
+                      {apt.visit_number && (
+                        <Badge variant="secondary" className="w-fit">
+                          Visit {apt.visit_number}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 ))
               )}

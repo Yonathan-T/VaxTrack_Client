@@ -9,7 +9,7 @@ import Link from "next/link"
 import { useLanguage } from "@/lib/language-context"
 import { useUser } from "@/lib/user-context"
 import { t } from "@/lib/translations"
-import { getChildrenList, type ChildProfile } from "@/lib/healthcare-worker-api"
+import { getChildrenList, getAppointmentsForChild, getChildVaccinationStatus, type ChildProfile } from "@/lib/healthcare-worker-api"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 
@@ -33,11 +33,6 @@ export function ChildrenList() {
       const response = await getChildrenList(searchQuery || undefined)
 
       if (response.error) {
-        console.error("[ChildrenList] Fetch failed:", {
-          status: response.status,
-          message: response.error.message,
-          fullError: response.error
-        })
         toast({
           title: language === "am" ? "ስህተት" : "Error",
           description: response.error.message || (language === "am" ? "ልጆችን መጫን አልተቻለም" : "Failed to load children"),
@@ -48,9 +43,33 @@ export function ChildrenList() {
       }
 
       if (response.data) {
-        const childrenData = (response.data as any).data || response.data
-        const childrenArray = Array.isArray(childrenData) ? childrenData : []
-        setChildren(childrenArray)
+        const childrenData = response.data as any
+        // The API client already extracts the 'data' field
+        const childrenList = Array.isArray(childrenData) ? childrenData : []
+
+        // Fetch vaccination status for each child to get accurate status and counts
+        const childrenWithVaccinationStatus = await Promise.all(
+          childrenList.map(async (child: any) => {
+            try {
+              const statusResponse = await getChildVaccinationStatus(child.id)
+              if (!statusResponse.error && statusResponse.data) {
+                const statusData = statusResponse.data as any
+                return {
+                  ...child,
+                  vaccinationStatus: statusData.vaccination_status,
+                  // Use the API's status_label directly
+                  apiStatus: statusData.vaccination_status.status_label
+                }
+              }
+              return child
+            } catch (error) {
+              console.error(`[ChildrenList] Failed to fetch vaccination status for child ${child.id}:`, error)
+              return child
+            }
+          })
+        )
+
+        setChildren(childrenWithVaccinationStatus)
       } else {
         setChildren([])
       }
@@ -78,52 +97,124 @@ export function ChildrenList() {
     fetchChildren()
   }
 
-  // Prefer computing status from actual vaccination records when available; otherwise fall back.
+  // Updated vaccination status logic - now uses API data
   const getVaccinationStatus = (child: any) => {
+    // Use the API status if available, otherwise fall back to old logic
+    if (child.apiStatus) {
+      return child.apiStatus // "complete" | "overdue" | "up_to_date"
+    }
+    
+    // Fallback logic if API status not available
     try {
-      const records: any[] = Array.isArray((child as any).vaccination_records)
-        ? (child as any).vaccination_records
+      // New API: vaccination records are inside appointments
+      const appointments: any[] = Array.isArray((child as any).appointments)
+        ? (child as any).appointments
         : []
+      
+      // Extract all vaccination records from appointments
+      const records: any[] = appointments.flatMap((apt: any) => 
+        Array.isArray(apt.vaccination_records) ? apt.vaccination_records : []
+      )
 
       if (records.length > 0) {
         const today = new Date()
+        today.setHours(0, 0, 0, 0) // Set to start of day for fair comparison
+
+        // Priority 1: Check for overdue vaccinations (most urgent)
         const hasOverdue = records.some((v: any) => {
-          const status = (v as any).status
-          if (status === "overdue") return true
-          if (status === "pending" || status === "scheduled") {
-            const due = (v as any).scheduled_date || (v as any).scheduledDate
-            const dueDate = due ? new Date(due) : null
-            return !!dueDate && !isNaN(dueDate.getTime()) && dueDate < today
-          }
-          return false
+          const scheduledDate = v.scheduled_at || v.due_date || v.scheduled_date
+          if (!scheduledDate) return false
+          
+          const scheduled = new Date(scheduledDate)
+          scheduled.setHours(0, 0, 0, 0)
+          
+          // Consider overdue if scheduled date is before today
+          return scheduled < today
         })
         if (hasOverdue) return "overdue"
 
-        const hasDue = records.some((v: any) => {
-          const status = (v as any).status
-          if (status === "pending" || status === "scheduled") {
-            const due = (v as any).scheduled_date || (v as any).scheduledDate
-            const dueDate = due ? new Date(due) : null
-            return !!dueDate && !isNaN(dueDate.getTime()) && dueDate >= today
-          }
-          return false
+        // Priority 2: Check for scheduled vaccinations (due today or future)
+        const hasScheduled = records.some((v: any) => {
+          const scheduledDate = v.scheduled_at || v.due_date || v.scheduled_date
+          if (!scheduledDate) return false
+          
+          const scheduled = new Date(scheduledDate)
+          scheduled.setHours(0, 0, 0, 0)
+          
+          // Consider scheduled if date is today or in the future
+          return scheduled >= today && v.status !== "completed"
         })
-        if (hasDue) return "due"
+        if (hasScheduled) return "scheduled"
 
-        return "up-to-date"
+        // Priority 3: If no scheduled/overdue, check if all are completed
+        const allCompleted = records.every((v: any) => v.status === "completed")
+        if (allCompleted) return "up-to-date"
+
+        // Default to scheduled if there are records but no clear status
+        return "scheduled"
       }
 
-      // Fallback heuristic if records are not present in the list response
+      // Fallback: Use age-based heuristic if no vaccination records
       const dateOfBirth: string = (child as any).date_of_birth || (child as any).dateOfBirth
       if (!dateOfBirth) return "unknown"
+      
       const birthDate = new Date(dateOfBirth)
-      const today = new Date()
-      const ageInMonths = (today.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24 * 30)
+      const todayForAge = new Date()
+      const ageInMonths = (todayForAge.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24 * 30)
+      
       if (ageInMonths < 2) return "up-to-date"
-      if (ageInMonths < 6) return "due"
+      if (ageInMonths < 6) return "scheduled"
       return "overdue"
-    } catch {
+    } catch (error) {
+      console.error("[getVaccinationStatus] Error:", error)
       return "unknown"
+    }
+  }
+
+  // Get vaccination count display
+  const getVaccinationCount = (child: any) => {
+    if (child.vaccinationStatus) {
+      const status = child.vaccinationStatus
+      return `${status.completed}/${status.total}`
+    }
+    return null
+  }
+
+  // Get intelligent status display based on API status and completion
+  const getDisplayStatus = (child: any) => {
+    const status = getVaccinationStatus(child)
+    const vaccinationStatus = child.vaccinationStatus
+    
+    if (vaccinationStatus) {
+      const percentage = vaccinationStatus.percentage
+      const completed = vaccinationStatus.completed
+      const total = vaccinationStatus.total
+      
+      // Use more intelligent status based on completion percentage
+      if (percentage === 100) {
+        return "Complete"
+      } else if (percentage >= 80) {
+        return "Almost Done"
+      } else if (status === "overdue") {
+        return "Overdue"
+      } else if (completed === 0) {
+        return "Not Started"
+      } else if (percentage >= 50) {
+        return "In Progress"
+      } else {
+        return "Just Started"
+      }
+    }
+    
+    // Fallback for old logic
+    if (status === "up-to-date" || status === "complete") {
+      return "Complete"
+    } else if (status === "scheduled" || status === "up_to_date") {
+      return "Scheduled"
+    } else if (status === "unknown") {
+      return "Unknown"
+    } else {
+      return "Overdue"
     }
   }
 
@@ -224,7 +315,8 @@ export function ChildrenList() {
                 </tr>
               ) : (
                 sortedChildren.map((child) => {
-                  const status = getVaccinationStatus(child as any)
+                  const status = getVaccinationStatus(child)
+                  const displayStatus = getDisplayStatus(child)
                   const parent = child.parent
                   const fullName = `${child.first_name} ${child.last_name}`.trim()
                   const dob = child.date_of_birth
@@ -274,25 +366,28 @@ export function ChildrenList() {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <Badge
-                          variant={
-                            status === "up-to-date"
-                              ? "default"
-                              : status === "due"
-                                ? "secondary"
-                                : status === "unknown"
-                                  ? "outline"
-                                  : "destructive"
-                          }
-                        >
-                          {status === "up-to-date"
-                            ? t("children.upToDate", language) || "Up to Date"
-                            : status === "due"
-                              ? t("children.due", language) || "Due"
-                              : status === "unknown"
-                                ? "Unknown"
-                                : t("children.overdue", language) || "Overdue"}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            variant={
+                              displayStatus === "Complete"
+                                ? "default"
+                                : displayStatus === "Overdue"
+                                  ? "destructive"
+                                  : displayStatus === "Almost Done"
+                                    ? "default"
+                                    : displayStatus === "In Progress"
+                                      ? "secondary"
+                                      : "outline"
+                            }
+                          >
+                            {displayStatus}
+                          </Badge>
+                          {getVaccinationCount(child) && (
+                            <Badge variant="outline" className="text-xs">
+                              {getVaccinationCount(child)}
+                            </Badge>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         <Link href={`/dashboard/children/${child.id}`}>
