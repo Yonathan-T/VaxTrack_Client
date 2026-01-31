@@ -117,15 +117,45 @@ export function VaccinationsList() {
     fetchVaccinations(true)
   }
 
-  const filteredVaccinations = vaccinations
-    .filter((vaccination) => {
-      const matchesSearch =
-        vaccination.childName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        vaccination.vaccine.toLowerCase().includes(searchQuery.toLowerCase())
-      const matchesStatus = filterStatus === "all" || vaccination.status === filterStatus
+  // Group vaccinations by child
+  const groupedVaccinations = vaccinations.reduce((acc, vaccination) => {
+    if (!acc[vaccination.childId]) {
+      acc[vaccination.childId] = {
+        childId: vaccination.childId,
+        childName: vaccination.childName,
+        vaccinations: [],
+        totalVaccinations: 0,
+        completedVaccinations: 0,
+        scheduledVaccinations: 0,
+        overdueVaccinations: 0,
+      }
+    }
+    acc[vaccination.childId].vaccinations.push(vaccination)
+    acc[vaccination.childId].totalVaccinations++
+    
+    if (vaccination.status === "completed") {
+      acc[vaccination.childId].completedVaccinations++
+    } else if (vaccination.status === "scheduled") {
+      acc[vaccination.childId].scheduledVaccinations++
+    } else if (vaccination.status === "overdue") {
+      acc[vaccination.childId].overdueVaccinations++
+    }
+    
+    return acc
+  }, {} as Record<string, any>)
+
+  const groupedArray = Object.values(groupedVaccinations)
+
+  const filteredGroupedVaccinations = groupedArray
+    .filter((group: any) => {
+      const matchesSearch = group.childName.toLowerCase().includes(searchQuery.toLowerCase())
+      const matchesStatus = filterStatus === "all" || 
+        (filterStatus === "completed" && group.completedVaccinations > 0) ||
+        (filterStatus === "scheduled" && group.scheduledVaccinations > 0) ||
+        (filterStatus === "overdue" && group.overdueVaccinations > 0)
       return matchesSearch && matchesStatus
     })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .sort((a: any, b: any) => a.childName.localeCompare(b.childName))
 
   if (isLoading) {
     return (
@@ -185,22 +215,19 @@ export function VaccinationsList() {
                   {t("children.title", language)}
                 </th>
                 <th className="px-3 py-2 text-left font-semibold text-foreground whitespace-nowrap min-w-[120px]">
-                  {t("vaccinations.vaccine", language)}
-                </th>
-                <th className="px-3 py-2 text-left font-semibold text-foreground whitespace-nowrap min-w-[110px]">
-                  {t("vaccinations.dateAdministered", language)}
+                  Total Vaccinations
                 </th>
                 <th className="px-3 py-2 text-left font-semibold text-foreground whitespace-nowrap min-w-[100px]">
-                  {t("vaccinations.batchNumber", language)}
-                </th>
-                <th className="px-3 py-2 text-left font-semibold text-foreground whitespace-nowrap min-w-[130px]">
-                  {t("vaccinations.administeredBy", language)}
+                  {t("vaccinations.completed", language)}
                 </th>
                 <th className="px-3 py-2 text-left font-semibold text-foreground whitespace-nowrap min-w-[100px]">
-                  {t("vaccinations.nextDue", language)}
+                  {t("vaccinations.scheduled", language)}
                 </th>
                 <th className="px-3 py-2 text-left font-semibold text-foreground whitespace-nowrap min-w-[100px]">
-                  {t("children.status", language)}
+                  {t("children.overdue", language)}
+                </th>
+                <th className="px-3 py-2 text-left font-semibold text-foreground whitespace-nowrap min-w-[120px]">
+                  Last Vaccination
                 </th>
                 <th className="px-3 py-2 text-left font-semibold text-foreground whitespace-nowrap min-w-[80px]">
                   {t("dashboard.actions.view", language)}
@@ -208,61 +235,63 @@ export function VaccinationsList() {
               </tr>
             </thead>
             <tbody>
-              {filteredVaccinations.length === 0 ? (
+              {filteredGroupedVaccinations.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">
+                  <td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">
                     {t("vaccinations.noVaccinations", language)}
                   </td>
                 </tr>
               ) : (
-                filteredVaccinations.map((vaccination) => (
-                  <tr key={vaccination.id} className="border-b hover:bg-muted/50 transition-colors">
-                    <td className="px-3 py-2 font-medium text-foreground">{vaccination.childName}</td>
-                    <td className="px-3 py-2 text-foreground">{vaccination.vaccine}</td>
-                    <td className="px-3 py-2 text-foreground">
-                      {vaccination.date && vaccination.date !== "-"
-                        ? new Date(vaccination.date).toLocaleDateString()
-                        : "-"}
-                    </td>
-                    <td className="px-3 py-2 font-mono font-semibold text-primary bg-muted/30">
-                      {vaccination.batchNumber || "-"}
-                    </td>
-                    <td className="px-3 py-2 text-foreground">{vaccination.administeredBy || "-"}</td>
-                    <td className="px-3 py-2 text-foreground">
-                      {vaccination.nextDue && vaccination.nextDue !== "-"
-                        ? new Date(vaccination.nextDue).toLocaleDateString()
-                        : "-"}
-                    </td>
-                    <td className="px-3 py-2">
-                      <Badge
-                        variant={
-                          vaccination.status === "completed"
-                            ? "default"
-                            : vaccination.status === "scheduled"
-                              ? "secondary"
-                              : "destructive"
+                filteredGroupedVaccinations.map((group: any) => {
+                  const lastVaccination = group.vaccinations
+                    .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
+                  
+                  return (
+                    <tr key={group.childId} className="border-b hover:bg-muted/50 transition-colors">
+                      <td className="px-3 py-2 font-medium text-foreground">{group.childName}</td>
+                      <td className="px-3 py-2">
+                        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+                          {group.totalVaccinations}
+                        </Badge>
+                      </td>
+                      <td className="px-3 py-2">
+                        {group.completedVaccinations > 0 ? (
+                          <Badge variant="default">{group.completedVaccinations}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground">0</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        {group.scheduledVaccinations > 0 ? (
+                          <Badge variant="secondary">{group.scheduledVaccinations}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground">0</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        {group.overdueVaccinations > 0 ? (
+                          <Badge variant="destructive">{group.overdueVaccinations}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground">0</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-foreground">
+                        {lastVaccination && lastVaccination.date && lastVaccination.date !== "-"
+                          ? `${lastVaccination.vaccine} (${new Date(lastVaccination.date).toLocaleDateString()})`
+                          : "-"
                         }
-                      >
-                        {t(
-  vaccination.status === "overdue"
-    ? "children.overdue"
-    : vaccination.status === "completed"
-      ? "vaccinations.completed"
-      : "vaccinations.scheduled",
-  language
-)}
-                      </Badge>
-                    </td>
-                    <td className="px-3 py-2">
-                      <Link href={`/dashboard/children/${vaccination.childId}`}>
-                        <Button variant="outline" size="sm" className="gap-2 bg-transparent">
-                          <Eye className="h-4 w-4" />
-                          {t("children.view", language)}
-                        </Button>
-                      </Link>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="px-3 py-2">
+                        <Link href={`/dashboard/children/${group.childId}`}>
+                          <Button variant="outline" size="sm" className="gap-2 bg-transparent">
+                            <Eye className="h-4 w-4" />
+                            {t("children.view", language)}
+                          </Button>
+                        </Link>
+                      </td>
+                    </tr>
+                  )
+                })
               )}
             </tbody>
           </table>

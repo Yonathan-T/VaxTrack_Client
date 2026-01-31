@@ -37,6 +37,7 @@ export function RecordVaccinationForm() {
   const [filteredInventory, setFilteredInventory] = useState<any[]>([])
   const [isLoadingInventory, setIsLoadingInventory] = useState(true)
   const [showVaccineResults, setShowVaccineResults] = useState(false)
+  const [forceDropdownOpen, setForceDropdownOpen] = useState(false)
 
   const [formData, setFormData] = useState({
     vaccine_id: undefined as number | undefined,
@@ -45,7 +46,6 @@ export function RecordVaccinationForm() {
     expiry_date: "",
     administration_site: "",
     dose_ml: "" as string | number,
-    dose_number: "" as string | number,
     notes: "",
   })
 
@@ -108,29 +108,12 @@ export function RecordVaccinationForm() {
     fetchInventory()
   }, [])
 
-  // Vaccine search debounce
+  // Set filtered inventory to all available vaccines by default
   useEffect(() => {
-    if (!searchVaccine.trim()) {
-      setFilteredInventory([])
-      return
-    }
-    if (selectedVaccine && (selectedVaccine.name || "").toLowerCase() === searchVaccine.toLowerCase().trim()) {
-      return
-    }
-    const id = setTimeout(() => {
-      const s = searchVaccine.toLowerCase().trim()
-      const filtered = inventory.filter((item: any) => {
-        const name = (item.vaccine?.name || item.vaccineName || item.name || "").toLowerCase()
-        const code = (item.vaccine?.code || item.code || "").toLowerCase()
-        const batch = (item.batch_number || item.batchNumber || "").toLowerCase()
-        return name.includes(s) || code.includes(s) || batch.includes(s)
-      })
-      setFilteredInventory(filtered)
-    }, 150)
-    return () => clearTimeout(id)
-  }, [searchVaccine, selectedVaccine, inventory])
+    setFilteredInventory(inventory)
+  }, [inventory])
 
-  // Fast client-side live search with debouncing
+  // Fast API-based search with debouncing
   useEffect(() => {
     // Clear results if search is empty
     if (!searchChild.trim()) {
@@ -145,60 +128,104 @@ export function RecordVaccinationForm() {
       return
     }
 
-    // Debounce search - wait 150ms for faster feel
-    const timeoutId = setTimeout(() => {
+    // Reduce debounce time for more responsive typing
+    const timeoutId = setTimeout(async () => {
       const searchLower = searchChild.toLowerCase().trim()
       
-      // Fast client-side filtering - no API call needed
-      const filtered = allChildren.filter((child: any) => {
-        const firstName = (child.first_name || "").toLowerCase()
-        const lastName = (child.last_name || "").toLowerCase()
-        const fullName = `${firstName} ${lastName}`.trim()
-        const childId = (child.id?.toString() || "").toLowerCase()
-        const nationalId = (child.national_id || "").toLowerCase()
-        const parentName = (child.parent?.name || child.user?.name || "").toLowerCase()
+      try {
+        setIsLoadingChildren(true)
+        console.log("[RecordVaccinationForm] Searching for:", searchLower)
         
-        // More flexible matching - check if search appears anywhere
-        return (
-          firstName.includes(searchLower) ||
-          lastName.includes(searchLower) ||
-          fullName.includes(searchLower) ||
-          childId.includes(searchLower) ||
-          nationalId.includes(searchLower) ||
-          parentName.includes(searchLower) ||
-          // Also check if search matches beginning of any word
-          firstName.startsWith(searchLower) ||
-          lastName.startsWith(searchLower) ||
-          // Check if search matches any part of the name
-          `${lastName} ${firstName}`.includes(searchLower)
-        )
-      })
+        // Try multiple case variations for case-insensitive search
+        const searchVariations = [
+          searchLower,                    // eliah
+          searchLower.charAt(0).toUpperCase() + searchLower.slice(1), // Eliah
+          searchLower.toUpperCase(),      // ELIAH
+        ]
+        
+        let response = null
+        let foundResults = false
+        
+        // Try each variation until we find results
+        for (const variation of searchVariations) {
+          console.log("[RecordVaccinationForm] Trying variation:", variation)
+          response = await getChildrenList(variation)
+          console.log("[RecordVaccinationForm] API response for", variation, ":", response)
+          
+          if (!response.error && response.data) {
+            const responseData = response.data as any
+            const childrenData = responseData?.data || responseData?.children || responseData || []
+            const childrenArray = Array.isArray(childrenData) ? childrenData : []
+            
+            if (childrenArray.length > 0) {
+              console.log("[RecordVaccinationForm] Found results with:", variation)
+              foundResults = true
+              break
+            }
+          }
+        }
+        
+        if (!foundResults || !response) {
+          console.log("[RecordVaccinationForm] No results found for any variation")
+          setFilteredChildren([])
+          setShowResults(true)
+          setError("No children found")
+          setIsLoadingChildren(false)
+          return
+        }
+        
+        if (response.error) {
+          console.error("[RecordVaccinationForm] Search error:", response.error)
+          setFilteredChildren([])
+          setError("Failed to search children")
+          return
+        }
+        const responseData = response.data as any
+        console.log("[RecordVaccinationForm] Response data:", responseData)
+        const childrenData = responseData?.data || responseData?.children || responseData || []
+        const childrenArray = Array.isArray(childrenData) ? childrenData : []
+        console.log("[RecordVaccinationForm] Children array:", childrenArray)
+        
+        // Additional client-side filtering as backup
+        const filtered = childrenArray.filter((child: any) => {
+          const childName = `${child.first_name} ${child.last_name}`.toLowerCase()
+          const childId = child.id?.toString().toLowerCase() || ""
+          return childName.includes(searchLower) || childId.includes(searchLower)
+        })
+        console.log("[RecordVaccinationForm] Filtered results:", filtered)
+        
+        // Sort by relevance - exact matches first, then starts with, then contains
+        const sorted = filtered.sort((a: any, b: any) => {
+          const aFirstName = (a.first_name || "").toLowerCase()
+          const aLastName = (a.last_name || "").toLowerCase()
+          const aFullName = `${aFirstName} ${aLastName}`.trim()
+          const bFirstName = (b.first_name || "").toLowerCase()
+          const bLastName = (b.last_name || "").toLowerCase()
+          const bFullName = `${bFirstName} ${bLastName}`.trim()
+          
+          const aStartsWith = aFirstName.startsWith(searchLower) || aLastName.startsWith(searchLower) ? 1 : 0
+          const bStartsWith = bFirstName.startsWith(searchLower) || bLastName.startsWith(searchLower) ? 1 : 0
+          
+          if (aStartsWith !== bStartsWith) return bStartsWith - aStartsWith
+          
+          // Then sort alphabetically
+          return aFullName.localeCompare(bFullName)
+        })
 
-      // Sort by relevance - exact matches first, then starts with, then contains
-      const sorted = filtered.sort((a, b) => {
-        const aFirstName = (a.first_name || "").toLowerCase()
-        const aLastName = (a.last_name || "").toLowerCase()
-        const aFullName = `${aFirstName} ${aLastName}`.trim()
-        const bFirstName = (b.first_name || "").toLowerCase()
-        const bLastName = (b.last_name || "").toLowerCase()
-        const bFullName = `${bFirstName} ${bLastName}`.trim()
-        
-        const aStartsWith = aFirstName.startsWith(searchLower) || aLastName.startsWith(searchLower) ? 1 : 0
-        const bStartsWith = bFirstName.startsWith(searchLower) || bLastName.startsWith(searchLower) ? 1 : 0
-        
-        if (aStartsWith !== bStartsWith) return bStartsWith - aStartsWith
-        
-        // Then sort alphabetically
-        return aFullName.localeCompare(bFullName)
-      })
-
-      setFilteredChildren(sorted)
-      setShowResults(true)
-      setError("")
-    }, 150)
+        setFilteredChildren(sorted)
+        setShowResults(true)
+        setError("")
+      } catch (err) {
+        console.error("[RecordVaccinationForm] Search error:", err)
+        setFilteredChildren([])
+        setError("Search failed")
+      } finally {
+        setIsLoadingChildren(false)
+      }
+    }, 200) // Reduced from 300ms to 200ms for faster response
 
     return () => clearTimeout(timeoutId)
-  }, [searchChild, selectedChild, allChildren])
+  }, [searchChild, selectedChild])
 
 
   const handleSelectChild = (child: any) => {
@@ -208,7 +235,7 @@ export function RecordVaccinationForm() {
     
     setSelectedChild({
       id: child.id,
-      name: childName,
+      name: childName,  
       dateOfBirth: child.date_of_birth || child.dateOfBirth,
       guardian: child.parent?.name || child.user?.name || "-",
     })
@@ -219,10 +246,12 @@ export function RecordVaccinationForm() {
   }
 
   const handleSelectVaccine = (item: any) => {
+    console.log("[RecordVaccinationForm] handleSelectVaccine called with:", item)
     const vaccineName = item.vaccine?.name || item.vaccineName || item.name || "Vaccine"
     const vaccineId = item.vaccine?.id || item.vaccine_id || item.id || item.vaccineId
     const batch = item.batch_number || item.batchNumber || ""
     const expiry = item.expiry_date || item.expiryDate || ""
+    console.log("[RecordVaccinationForm] Setting vaccine:", { vaccineName, vaccineId, batch, expiry })
     setSelectedVaccine({
       id: vaccineId,
       name: vaccineName,
@@ -236,7 +265,7 @@ export function RecordVaccinationForm() {
       expiry_date: expiry,
     }))
     setSearchVaccine(vaccineName)
-    setFilteredInventory([])
+    // Don't clear filtered inventory - keep it available for reselection
     setShowVaccineResults(false)
   }
 
@@ -266,9 +295,8 @@ export function RecordVaccinationForm() {
         notes: formData.notes || undefined,
       }
       if (formData.dose_ml !== "" && formData.dose_ml !== undefined) payload.dose_ml = Number(formData.dose_ml)
-      if (formData.dose_number !== "" && formData.dose_number !== undefined) payload.dose_number = Number(formData.dose_number)
 
-      const response = await recordVaccination(payload)
+      const response = await recordVaccination(selectedChild.id, payload)
 
       if (response.error) {
         setError(response.error.message || "Failed to record vaccination")
@@ -418,93 +446,75 @@ export function RecordVaccinationForm() {
 
         <div className="grid md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="vaccineSearch">Search Vaccine *</Label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="vaccineSearch"
-                placeholder={isLoadingInventory ? "Loading vaccines..." : "Type vaccine name, code, or batch..."}
-                value={searchVaccine}
-                onChange={(e) => {
-                  const v = e.target.value
-                  setSearchVaccine(v)
-                  if (v.trim() === "") {
-                    setFilteredInventory([])
-                    setSelectedVaccine(null)
-                    setFormData(prev => ({ ...prev, vaccine_id: undefined, batch_number: "", expiry_date: "" }))
-                    setShowVaccineResults(false)
-                  } else {
-                    setSelectedVaccine(null)
-                    setShowVaccineResults(true)
-                  }
-                }}
-                onFocus={() => {
-                  if (filteredInventory.length > 0 && searchVaccine.trim()) {
-                    setShowVaccineResults(true)
-                  }
-                }}
-                onBlur={() => {
-                  setTimeout(() => setShowVaccineResults(false), 200)
-                }}
-                className="pl-9"
-                disabled={!!selectedVaccine || isLoadingInventory}
-              />
-              {isLoadingInventory && (
-                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-              )}
-            {showVaccineResults && filteredInventory.length > 0 && (
-              <Card className="absolute left-0 right-0 z-50 mt-2 max-h-60 overflow-y-auto shadow-lg border bg-background">
-                <div className="p-2">
-                  <p className="text-xs text-muted-foreground px-2 py-1 mb-1">
-                    {filteredInventory.length} {filteredInventory.length === 1 ? "vaccine found" : "vaccines found"}
-                  </p>
-                  <div className="space-y-1">
-                    {filteredInventory.slice(0, 10).map((item: any) => {
-                      const name = item.vaccine?.name || item.vaccineName || item.name || "Vaccine"
-                      const code = item.vaccine?.code || item.code || ""
-                      const batch = item.batch_number || item.batchNumber || ""
-                      const expiry = item.expiry_date || item.expiryDate || ""
-                      return (
-                        <div
-                          key={`${item.id || item.vaccine_id || batch}`}
-                          className="p-3 rounded-lg hover:bg-muted cursor-pointer transition-colors border border-transparent hover:border-primary/20"
-                          onMouseDown={(e) => {
-                            e.preventDefault()
-                            handleSelectVaccine(item)
-                          }}
-                        >
-                          <p className="font-medium text-foreground">{name} {code && `(${code})`}</p>
-                          <p className="text-sm text-muted-foreground">Batch: {batch || "-"} • Expires: {expiry || "-"}</p>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              </Card>
-            )}
-
-            {showVaccineResults && filteredInventory.length === 0 && searchVaccine.trim() && !isLoadingInventory && (
-              <Card className="absolute left-0 right-0 z-50 mt-2 shadow-lg border bg-background">
-                <div className="p-4 text-center text-sm text-muted-foreground">
-                  No vaccines found matching "{searchVaccine}"
-                </div>
-              </Card>
-            )}
-            </div>
-
+            <Label htmlFor="vaccineSelect">Select Vaccine *</Label>
+            <Select
+              value={selectedVaccine ? `${selectedVaccine.id}|||${selectedVaccine.batch_number}` : ""}
+              onValueChange={(value) => {
+                console.log("[RecordVaccinationForm] Vaccine selected:", value)
+                const [vaccineId, batchNumber] = value.split('|||')
+                console.log("[RecordVaccinationForm] Parsed:", { vaccineId, batchNumber })
+                const vaccine = filteredInventory.find((item: any) => {
+                  const itemVaccineId = item.vaccine?.id?.toString() || item.vaccine_id?.toString() || item.id?.toString() || item.vaccineId?.toString()
+                  const itemBatch = item.batch_number || item.batchNumber || ""
+                  console.log("[RecordVaccinationForm] Checking item:", { itemVaccineId, itemBatch, match: itemVaccineId === vaccineId && itemBatch === batchNumber })
+                  return itemVaccineId === vaccineId && itemBatch === batchNumber
+                })
+                console.log("[RecordVaccinationForm] Found vaccine:", vaccine)
+                if (vaccine) {
+                  handleSelectVaccine(vaccine)
+                } else {
+                  console.error("[RecordVaccinationForm] No vaccine found for selection:", value)
+                }
+              }}
+              disabled={isLoadingInventory}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={isLoadingInventory ? "Loading vaccines..." : "Select a vaccine from inventory"} />
+              </SelectTrigger>
+              <SelectContent>
+                {filteredInventory.map((item: any) => {
+                  const vaccineName = item.vaccine?.name || item.vaccineName || item.name || "Unknown Vaccine"
+                  const vaccineCode = item.vaccine?.code || item.code || ""
+                  const batch = item.batch_number || item.batchNumber || ""
+                  const stock = item.stock || item.quantity || 0
+                  const vaccineId = item.vaccine?.id || item.vaccine_id || item.id || item.vaccineId
+                  
+                  return (
+                    <SelectItem key={`${vaccineId}|||${batch}`} value={`${vaccineId}|||${batch}`}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{vaccineName}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {vaccineCode && `Code: ${vaccineCode}`}
+                          {batch && ` • Batch: ${batch}`}
+                          {stock !== undefined && ` • Stock: ${stock}`}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  )
+                })}
+              </SelectContent>
+            </Select>
             {selectedVaccine && (
-              <Card className="p-3 bg-muted/40 border-primary/20">
-                <p className="text-sm text-foreground font-medium">{selectedVaccine.name}</p>
-                <p className="text-xs text-muted-foreground">Batch: {selectedVaccine.batch_number || "-"} • Expires: {selectedVaccine.expiry_date || "-"}</p>
-                <div className="mt-2">
-                  <Button type="button" variant="ghost" size="sm" onClick={() => {
+              <div className="mt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    console.log("[RecordVaccinationForm] Change button clicked")
                     setSelectedVaccine(null)
-                    setSearchVaccine("")
-                    setFilteredInventory([])
-                    setFormData(prev => ({ ...prev, vaccine_id: undefined, batch_number: "", expiry_date: "" }))
-                  }}>Change</Button>
-                </div>
-              </Card>
+                    setFormData(prev => ({ 
+                      ...prev, 
+                      vaccine_id: undefined, 
+                      batch_number: "", 
+                      expiry_date: "" 
+                    }))
+                    console.log("[RecordVaccinationForm] Vaccine selection cleared")
+                  }}
+                >
+                  Change Vaccine
+                </Button>
+              </div>
             )}
           </div>
 
@@ -536,10 +546,10 @@ export function RecordVaccinationForm() {
 
         <div className="grid md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="site">Administration Site *</Label>
+            <Label htmlFor="site">Injection Site *</Label>
             <Select value={formData.administration_site} onValueChange={(value) => setFormData({ ...formData, administration_site: value })}>
               <SelectTrigger>
-                <SelectValue placeholder="Select administration site" />
+                <SelectValue placeholder="Select injection site" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Left arm">Left Upper Arm</SelectItem>
@@ -563,37 +573,22 @@ export function RecordVaccinationForm() {
             />
           </div>
         </div>
+        </div>
 
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-foreground">Additional Information</h3>
+
           <div className="space-y-2">
-            <Label htmlFor="dose_number">Dose Number</Label>
-            <Input
-              id="dose_number"
-              type="number"
-              step="1"
-              min={1}
-              placeholder="e.g., 1"
-              value={formData.dose_number as any}
-              onChange={(e) => setFormData({ ...formData, dose_number: e.target.value })}
+            <Label htmlFor="notes">Notes</Label>
+            <Textarea
+              id="notes"
+              placeholder="Any additional notes..."
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              rows={3}
             />
           </div>
         </div>
-      </div>
-
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-foreground">Additional Information</h3>
-
-        <div className="space-y-2">
-          <Label htmlFor="notes">Notes</Label>
-          <Textarea
-            id="notes"
-            placeholder="Any additional notes..."
-            value={formData.notes}
-            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-            rows={3}
-          />
-        </div>
-      </div>
 
       <div className="flex gap-4">
         <Button type="submit" disabled={loading || !selectedChild || !formData.vaccine_id} className="min-w-[160px]">

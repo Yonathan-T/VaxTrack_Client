@@ -13,6 +13,93 @@ import { RecordVaccinationModal } from "./record-vaccination-modal"
 import { RescheduleAppointmentModal } from "./reschedule-appointment-modal"
 import { useToast } from "@/hooks/use-toast"
 
+// Ethiopian Date Conversion Function
+const getEthiopianDate = async (date: string, language: string) => {
+  try {
+    let gcDate: string = ""
+    
+    if (date.includes('/')) {
+      const parts = date.split('/')
+      if (parts.length === 3) {
+        const month = parts[0].padStart(2, '0')
+        const day = parts[1].padStart(2, '0')
+        const year = parts[2]
+        gcDate = `${year}-${month}-${day}`
+      }
+    } else if (date.includes('T')) {
+      const utcDate = new Date(date)
+      const ethiopianDateObj = new Date(utcDate.getTime() + (3 * 60 * 60 * 1000)) // Add 3 hours for Ethiopia
+      gcDate = ethiopianDateObj.toISOString().split('T')[0]
+    } else if (date.length === 10 && date.includes('-')) {
+      gcDate = date
+    } else {
+      const dateObj = new Date(date)
+      gcDate = dateObj.toISOString().split('T')[0]
+    }
+    
+    const response = await fetch(`https://api.ethioall.com/convert/api?gc=${gcDate}`)
+    const data = await response.json()
+    
+    if (data && data.length > 0) {
+      const ethDate = data[0]
+      const monthName = language === "en" ? ethDate.month_name.english : ethDate.month_name.amharic
+      const dayName = language === "en" ? ethDate.day_name.english : ethDate.day_name.amharic
+      
+      return {
+        date: `${ethDate.day} ${monthName} ${ethDate.year}`,
+        dayName: dayName,
+        fullDate: `${dayName}, ${ethDate.day} ${monthName} ${ethDate.year}`
+      }
+    }
+  } catch (error) {
+    console.error("Error converting to Ethiopian date:", error)
+    const dateObj = new Date(date)
+    const ethiopianYear = dateObj.getFullYear() - 8
+    const fallbackMonth = language === "en" ? "የካቲት" : "የካቲት"
+    const fallbackDay = language === "en" ? "ሐሙስ" : "ሐሙስ"
+    
+    return {
+      date: `${dateObj.getDate()} ${fallbackMonth} ${ethiopianYear}`,
+      dayName: fallbackDay,
+      fullDate: `${fallbackDay}, ${dateObj.getDate()} ${fallbackMonth} ${ethiopianYear}`
+    }
+  }
+  
+  return null
+}
+
+// Ethiopian Date Converter Component
+const EthiopianDateConverter = ({ date, language }: { date: string | null | undefined, language: string }) => {
+  const [ethiopianDate, setEthiopianDate] = useState<string>("")
+  const [loading, setLoading] = useState<boolean>(false)
+
+  useEffect(() => {
+    const convertToEthiopian = async () => {
+      if (!date) return
+      
+      setLoading(true)
+      try {
+        const result = await getEthiopianDate(date, language)
+        if (result) {
+          setEthiopianDate(result.fullDate)
+        }
+      } catch (error) {
+        console.error("Error in Ethiopian date conversion:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    convertToEthiopian()
+  }, [date, language])
+
+  if (loading) {
+    return <span className="text-xs text-muted-foreground">Loading...</span>
+  }
+
+  return <span className="text-xs text-muted-foreground">{ethiopianDate || "N/A"}</span>
+}
+
 export function VaccinationHistory({ childId }: { childId: string }) {
   const { language } = useLanguage()
   const { toast } = useToast()
@@ -339,6 +426,14 @@ export function VaccinationHistory({ childId }: { childId: string }) {
                             <Calendar className="h-3 w-3" />
                             Due: {scheduledDate}
                           </span>
+                          {record.scheduled_at && (
+                            <span className="text-xs text-muted-foreground">
+                              Ethiopian: <EthiopianDateConverter 
+                                date={record.scheduled_at}
+                                language={language}
+                              />
+                            </span>
+                          )}
                           {record.vaccine?.code && (
                             <span className="font-mono text-xs">{record.vaccine.code}</span>
                           )}

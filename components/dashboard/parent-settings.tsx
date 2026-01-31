@@ -71,12 +71,12 @@ export function ParentSettings() {
             </div>
 
             <Tabs defaultValue="profile" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+                <TabsList className="grid w-full grid-cols-3 lg:w-[600px]">
                     <TabsTrigger value="profile">
                         {language === "am" ? "መግለጫ" : "Profile"}
                     </TabsTrigger>
                     <TabsTrigger value="notifications">
-                        {language === "am" ? "ማሳወቂያዎች" : "Notifications"}
+                        {language === "am" ? "ማሳወቂያᎎች" : "Notifications"}
                     </TabsTrigger>
                     <TabsTrigger value="security">
                         {language === "am" ? "ደህንነት" : "Security"}
@@ -173,7 +173,9 @@ export function ParentSettings() {
                 </TabsContent>
 
                 <TabsContent value="security" className="mt-6">
-                    <ChangePasswordSettings />
+                    <Card className="p-6">
+                        <ChangePasswordSettings />
+                    </Card>
                 </TabsContent>
             </Tabs>
         </div>

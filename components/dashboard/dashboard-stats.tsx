@@ -4,53 +4,169 @@ import { useEffect, useState, useMemo } from "react"
 import { Card } from "@/components/ui/card"
 import { Users, Syringe, Calendar, AlertTriangle } from "lucide-react"
 import { useLanguage } from "@/lib/language-context"
+import { useToast } from "@/hooks/use-toast"
 import { t } from "@/lib/translations"
 import { cn } from "@/lib/utils"
+import { getChildrenList, getAppointmentsForChild, getChildVaccinationStatus } from "@/lib/healthcare-worker-api"
 
 export function DashboardStats() {
   const { language } = useLanguage()
+  const { toast } = useToast()
+  const [isLoading, setIsLoading] = useState(true)
+  const [stats, setStats] = useState({
+    totalChildren: 0,
+    vaccinationsToday: 0,
+    upcomingAppointments: 0,
+    overdueVaccinations: 0,
+    weeklyNewChildren: 0
+  })
 
-  const stats = useMemo(
+  useEffect(() => {
+    const fetchDashboardStats = async () => {
+      try {
+        setIsLoading(true)
+        
+        // Fetch all children
+        const childrenResponse = await getChildrenList()
+        if (childrenResponse.error) {
+          console.error("Failed to fetch children:", childrenResponse.error)
+          return
+        }
+
+        const childrenData = childrenResponse.data as any
+        const children = Array.isArray(childrenData) ? childrenData : []
+
+        // Fetch vaccination status for each child to get accurate counts
+        const childrenWithStatus = await Promise.all(
+          children.map(async (child: any) => {
+            try {
+              const statusResponse = await getChildVaccinationStatus(child.id)
+              if (!statusResponse.error && statusResponse.data) {
+                const statusData = statusResponse.data as any
+                return {
+                  ...child,
+                  vaccinationStatus: statusData.vaccination_status,
+                  apiStatus: statusData.vaccination_status.status_label
+                }
+              }
+              return child
+            } catch (error) {
+              console.error(`Failed to fetch status for child ${child.id}:`, error)
+              return child
+            }
+          })
+        )
+
+        // Calculate stats
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        
+        // Count overdue children
+        const overdueCount = childrenWithStatus.filter(child => 
+          child.apiStatus === "overdue"
+        ).length
+
+        // Calculate weekly new children (children registered in last 7 days)
+        const sevenDaysAgo = new Date()
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+        const weeklyNewCount = children.filter(child => {
+          const createdAt = new Date(child.created_at || child.createdAt)
+          return createdAt >= sevenDaysAgo
+        }).length
+
+        // Fetch appointments for upcoming count
+        let upcomingCount = 0
+        let vaccinationsTodayCount = 0
+        
+        for (const child of children.slice(0, 10)) { // Limit to first 10 for performance
+          try {
+            const appointmentsResponse = await getAppointmentsForChild(child.id)
+            if (!appointmentsResponse.error && appointmentsResponse.data) {
+              const appointments = Array.isArray(appointmentsResponse.data) ? appointmentsResponse.data : []
+              
+              // Count upcoming appointments (next 7 days)
+              const sevenDaysFromNow = new Date()
+              sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7)
+              
+              appointments.forEach((apt: any) => {
+                const aptDate = new Date(apt.scheduled_at || apt.appointment_date || '')
+                if (aptDate >= today && aptDate <= sevenDaysFromNow && apt.status === 'scheduled') {
+                  upcomingCount++
+                }
+                if (aptDate.toDateString() === today.toDateString() && apt.status === 'scheduled') {
+                  vaccinationsTodayCount++
+                }
+              })
+            }
+          } catch (error) {
+            console.error(`Failed to fetch appointments for child ${child.id}:`, error)
+          }
+        }
+
+        setStats({
+          totalChildren: children.length,
+          vaccinationsToday: vaccinationsTodayCount,
+          upcomingAppointments: upcomingCount,
+          overdueVaccinations: overdueCount,
+          weeklyNewChildren: weeklyNewCount
+        })
+
+      } catch (error) {
+        console.error("Dashboard stats error:", error)
+        toast({
+          title: "Error",
+          description: "Failed to load dashboard statistics",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchDashboardStats()
+  }, [toast])
+
+  const statsData = useMemo(
     () => [
       {
         title: t("dashboard.stats.totalChildren", language),
-        value: 0,
-        change: t("dashboard.stats.totalChildrenChange", language),
+        value: stats.totalChildren,
+        change: stats.weeklyNewChildren > 0 ? `+${stats.weeklyNewChildren} This week` : "No new children",
         icon: Users,
         color: "text-primary",
         bgGradient: "from-blue-500/10 to-blue-600/5",
       },
       {
         title: t("dashboard.stats.vaccinationsToday", language),
-        value: 0,
-        change: t("dashboard.stats.vaccinationsTodayChange", language),
+        value: stats.vaccinationsToday,
+        change: stats.vaccinationsToday === 0 ? "No pending" : "0 pending",
         icon: Syringe,
         color: "text-green-600",
         bgGradient: "from-green-500/10 to-green-600/5",
       },
       {
         title: t("dashboard.stats.upcomingAppointments", language),
-        value: 0,
-        change: t("dashboard.stats.upcomingAppointmentsChange", language),
+        value: stats.upcomingAppointments,
+        change: "Next 7 days",
         icon: Calendar,
         color: "text-purple-600",
         bgGradient: "from-purple-500/10 to-purple-600/5",
       },
       {
         title: t("dashboard.stats.missedVaccinations", language),
-        value: 0,
-        change: t("dashboard.stats.missedVaccinationsChange", language),
+        value: stats.overdueVaccinations,
+        change: "Requires follow-up",
         icon: AlertTriangle,
         color: "text-destructive",
         bgGradient: "from-red-500/10 to-red-600/5",
       },
     ],
-    [language],
+    [stats, language],
   )
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {stats.map((stat, index) => {
+      {statsData.map((stat, index) => {
         const Icon = stat.icon
         return (
           <Card
@@ -59,7 +175,8 @@ export function DashboardStats() {
               "p-4 sm:p-6 relative overflow-hidden",
               "transition-all duration-500 ease-out",
               "hover:shadow-xl hover:shadow-primary/10 hover:scale-[1.02] hover:-translate-y-1",
-              "border-l-4 animate-fade-in-up"
+              "border-l-4 animate-fade-in-up",
+              isLoading && "opacity-50"
             )}
             style={{
               animationDelay: `${index * 100}ms`,

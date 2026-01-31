@@ -61,6 +61,11 @@ export function DashboardNav() {
           icon: Users,
         },
         {
+          title: t("dashboard.nav.vaccinations", language),
+          href: "/dashboard/vaccinations",
+          icon: Syringe,
+        },
+        {
           title: t("dashboard.nav.appointments", language),
           href: "/dashboard/appointments",
           icon: Calendar,

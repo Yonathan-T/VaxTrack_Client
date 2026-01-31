@@ -10,6 +10,93 @@ import { getAppointmentsForChild, type Appointment } from "@/lib/healthcare-work
 import { useToast } from "@/hooks/use-toast"
 import { RescheduleAppointmentModal } from "./reschedule-appointment-modal"
 
+// Ethiopian Date Conversion Function
+const getEthiopianDate = async (date: string, language: string) => {
+  try {
+    let gcDate: string = ""
+    
+    if (date.includes('/')) {
+      const parts = date.split('/')
+      if (parts.length === 3) {
+        const month = parts[0].padStart(2, '0')
+        const day = parts[1].padStart(2, '0')
+        const year = parts[2]
+        gcDate = `${year}-${month}-${day}`
+      }
+    } else if (date.includes('T')) {
+      const utcDate = new Date(date)
+      const ethiopianDateObj = new Date(utcDate.getTime() + (3 * 60 * 60 * 1000)) // Add 3 hours for Ethiopia
+      gcDate = ethiopianDateObj.toISOString().split('T')[0]
+    } else if (date.length === 10 && date.includes('-')) {
+      gcDate = date
+    } else {
+      const dateObj = new Date(date)
+      gcDate = dateObj.toISOString().split('T')[0]
+    }
+    
+    const response = await fetch(`https://api.ethioall.com/convert/api?gc=${gcDate}`)
+    const data = await response.json()
+    
+    if (data && data.length > 0) {
+      const ethDate = data[0]
+      const monthName = language === "en" ? ethDate.month_name.english : ethDate.month_name.amharic
+      const dayName = language === "en" ? ethDate.day_name.english : ethDate.day_name.amharic
+      
+      return {
+        date: `${ethDate.day} ${monthName} ${ethDate.year}`,
+        dayName: dayName,
+        fullDate: `${dayName}, ${ethDate.day} ${monthName} ${ethDate.year}`
+      }
+    }
+  } catch (error) {
+    console.error("Error converting to Ethiopian date:", error)
+    const dateObj = new Date(date)
+    const ethiopianYear = dateObj.getFullYear() - 8
+    const fallbackMonth = language === "en" ? "የካቲት" : "የካቲት"
+    const fallbackDay = language === "en" ? "ሐሙስ" : "ሐሙስ"
+    
+    return {
+      date: `${dateObj.getDate()} ${fallbackMonth} ${ethiopianYear}`,
+      dayName: fallbackDay,
+      fullDate: `${fallbackDay}, ${dateObj.getDate()} ${fallbackMonth} ${ethiopianYear}`
+    }
+  }
+  
+  return null
+}
+
+// Ethiopian Date Converter Component
+const EthiopianDateConverter = ({ date, language }: { date: string | null | undefined, language: string }) => {
+  const [ethiopianDate, setEthiopianDate] = useState<string>("")
+  const [loading, setLoading] = useState<boolean>(false)
+
+  useEffect(() => {
+    const convertToEthiopian = async () => {
+      if (!date) return
+      
+      setLoading(true)
+      try {
+        const result = await getEthiopianDate(date, language)
+        if (result) {
+          setEthiopianDate(result.fullDate)
+        }
+      } catch (error) {
+        console.error("Error in Ethiopian date conversion:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    convertToEthiopian()
+  }, [date, language])
+
+  if (loading) {
+    return <span className="text-xs text-muted-foreground">Loading...</span>
+  }
+
+  return <span className="text-xs text-muted-foreground">{ethiopianDate || "N/A"}</span>
+}
+
 export function ChildAppointments({ childId }: { childId: string }) {
   const { language } = useLanguage()
   const { toast } = useToast()
@@ -41,43 +128,41 @@ export function ChildAppointments({ childId }: { childId: string }) {
         const today = new Date()
         today.setHours(0, 0, 0, 0)
         
-        const filteredAppointments = allAppointments.filter((apt: any) => {
-          const appointmentDate = apt.scheduled_at ? new Date(apt.scheduled_at) : new Date(apt.appointment_date || '')
+        const upcomingAppointments = allAppointments.filter(apt => {
+          const appointmentDate = new Date(apt.scheduled_at || apt.appointment_date || '')
+          const appointmentDay = new Date(appointmentDate)
+          appointmentDay.setHours(0, 0, 0, 0)
           
-          console.log("[ChildAppointments] Filtering appointment:", {
-            id: apt.id,
-            status: apt.status,
-            appointmentDate: appointmentDate.toISOString(),
-            today: new Date().toISOString()
-          })
-          
-          // For scheduled appointments, only show future or today's appointments
-          if (apt.status === 'scheduled') {
-            const today = new Date()
-            today.setHours(0, 0, 0, 0)
-            const appointmentDay = new Date(appointmentDate)
-            appointmentDay.setHours(0, 0, 0, 0)
-            
-            const isValid = appointmentDay >= today
-            console.log(`Appointment ${apt.id} is valid:`, isValid)
-            return isValid
-          }
-          
-          // For completed appointments, show recent ones (last 7 days)
-          if (apt.status === 'completed') {
-            const sevenDaysAgo = new Date()
-            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-            return appointmentDate >= sevenDaysAgo
-          }
-          
-          // For other statuses (like missed, cancelled), show recent ones
-          const thirtyDaysAgo = new Date()
-          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-          return appointmentDate >= thirtyDaysAgo
+          // Show upcoming or today's scheduled appointments
+          return apt.status === 'scheduled' && appointmentDay >= today
         })
+        
+        const missedAppointments = allAppointments.filter(apt => {
+          const appointmentDate = new Date(apt.scheduled_at || apt.appointment_date || '')
+          const appointmentDay = new Date(appointmentDate)
+          appointmentDay.setHours(0, 0, 0, 0)
+          
+          // Show past scheduled appointments (missed)
+          return apt.status === 'scheduled' && appointmentDay < today
+        })
+        
+        const recentCompleted = allAppointments.filter(apt => {
+          const appointmentDate = new Date(apt.scheduled_at || apt.appointment_date || '')
+          const sevenDaysAgo = new Date()
+          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+          
+          // Show recent completed appointments (last 7 days)
+          return apt.status === 'completed' && appointmentDate >= sevenDaysAgo
+        })
+        
+        // Combine: upcoming + missed + recent completed
+        const filteredAppointments = [...upcomingAppointments, ...missedAppointments, ...recentCompleted]
         
         console.log("[ChildAppointments] Filtered appointments:", {
           total: allAppointments.length,
+          upcoming: upcomingAppointments.length,
+          missed: missedAppointments.length,
+          recentCompleted: recentCompleted.length,
           filtered: filteredAppointments.length,
           today: today.toISOString()
         })
@@ -187,51 +272,100 @@ export function ChildAppointments({ childId }: { childId: string }) {
               </p>
             </div>
           ) : (
-            appointments.map((apt) => (
-              <div key={apt.id} className="p-4 rounded-xl border border-border bg-card flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                    <Calendar className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      {apt.ethiopian_time && (
-                        <span className="font-semibold text-sm text-primary">
-                          🕐 {formatEthiopianTime(apt.ethiopian_time)}
-                        </span>
-                      )}
-                      <span className="text-sm text-muted-foreground">
-                        {formatAppointmentDate(apt).gregorianDate} at {formatAppointmentDate(apt).time}
-                      </span>
+            appointments.map((apt) => {
+              const appointmentDate = new Date(apt.scheduled_at || apt.appointment_date || '')
+              const today = new Date()
+              today.setHours(0, 0, 0, 0)
+              const appointmentDay = new Date(appointmentDate)
+              appointmentDay.setHours(0, 0, 0, 0)
+              
+              const isPast = appointmentDay < today
+              const isMissed = isPast && apt.status === 'scheduled'
+              const isCompleted = apt.status === 'completed'
+              
+              return (
+                <div 
+                  key={apt.id} 
+                  className={`p-4 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                    isPast 
+                      ? 'bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-700' 
+                      : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
+                      isPast 
+                        ? 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300' 
+                        : 'bg-green-200 dark:bg-green-700 text-green-600 dark:text-green-300'
+                    }`}>
+                      <Calendar className="h-5 w-5" />
                     </div>
-                    <p className="text-sm text-muted-foreground italic">
-                      {apt.notes || (language === "am" ? "ምንም ማስታወሻ የለም" : "No notes from health worker")}
-                    </p>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        {apt.scheduled_at && (
+                          <span className="font-semibold text-sm text-primary">
+                            🕐 {(() => {
+                              const utcTime = new Date(apt.scheduled_at)
+                              const ethiopianTime = new Date(utcTime.getTime() + (3 * 60 * 60 * 1000)) // Add 3 hours for Ethiopia
+                              return ethiopianTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+                            })()}
+                          </span>
+                        )}
+                        <span className="text-sm text-muted-foreground">
+                          {formatAppointmentDate(apt).gregorianDate} at {formatAppointmentDate(apt).time}
+                        </span>
+                      </div>
+                      {apt.scheduled_at && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Ethiopian Date: <EthiopianDateConverter 
+                            date={apt.scheduled_at}
+                            language={language}
+                          />
+                        </div>
+                      )}
+                      <p className="text-sm text-muted-foreground italic">
+                        {apt.notes || (language === "am" ? "ምንም ማስታወሻ የለም" : "No notes from health worker")}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge 
+                      variant="outline" 
+                      className={`w-fit ${
+                        isMissed 
+                          ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700' 
+                          : isCompleted 
+                            ? 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600'
+                            : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-700'
+                      }`}
+                    >
+                      {isMissed 
+                        ? (language === "am" ? "ተወዋ" : "Missed")
+                        : isCompleted 
+                          ? (language === "am" ? "ተጠናቋል" : "Completed")
+                          : (language === "am" ? "ተያዘ" : "Scheduled")
+                      }
+                    </Badge>
+                    {apt.visit_number && (
+                      <Badge variant="secondary" className="w-fit">
+                        Visit {apt.visit_number}
+                      </Badge>
+                    )}
+                    {apt.status === "scheduled" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleReschedule(apt)}
+                        className="flex items-center gap-1"
+                      >
+                        <CalendarClock className="h-3 w-3" />
+                        {language === "am" ? "እንደገና ያዘጋጁ" : "Reschedule"}
+                      </Button>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="w-fit">
-                    {apt.status}
-                  </Badge>
-                  {apt.visit_number && (
-                    <Badge variant="secondary" className="w-fit">
-                      Visit {apt.visit_number}
-                    </Badge>
-                  )}
-                  {apt.status === "scheduled" && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleReschedule(apt)}
-                      className="flex items-center gap-1"
-                    >
-                      <CalendarClock className="h-3 w-3" />
-                      {language === "am" ? "እንደገና ያዘጋጁ" : "Reschedule"}
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))
+              )
+            })
           )}
         </div>
       </Card>

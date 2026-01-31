@@ -6,7 +6,7 @@ import { AlertCircle, Users, Syringe, Calendar, Stethoscope, CheckCircle2 } from
 import { HealthWorkerInventoryPreview } from "./health-worker-inventory-preview"
 import { TodayDueList } from "./today-due-list"
 import { useRouter } from "next/navigation"
-import { getChildrenList, getAppointmentsList, getStockAlerts, getTodayDue } from "@/lib/healthcare-worker-api"
+import { getChildrenList, getAppointmentsList, getStockAlerts, getTodayDue, getChildVaccinationStatus } from "@/lib/healthcare-worker-api"
 import { useLanguage } from "@/lib/language-context"
 import { useUser } from "@/lib/user-context"
 import { t } from "@/lib/translations"
@@ -46,6 +46,7 @@ export function HealthWorkerDashboard({ language: initialLanguage }: RoleDashboa
         let alertsCount = 0
         let vaccinationsToday = 0
         let pendingToday = 0
+        let overdueCount = 0
 
         if (childrenRes.data) {
           const childrenData = (childrenRes.data as any).children || (childrenRes.data as any).data || childrenRes.data
@@ -62,6 +63,31 @@ export function HealthWorkerDashboard({ language: initialLanguage }: RoleDashboa
             const createdDate = new Date(created)
             return !isNaN(createdDate.getTime()) && createdDate >= sevenDaysAgo && createdDate <= now
           }).length
+
+          // Fetch vaccination status for each child to get accurate overdue count
+          const childrenWithStatus = await Promise.all(
+            childrenArray.map(async (child: any) => {
+              try {
+                const statusResponse = await getChildVaccinationStatus(child.id)
+                if (!statusResponse.error && statusResponse.data) {
+                  const statusData = statusResponse.data as any
+                  return {
+                    ...child,
+                    apiStatus: statusData.vaccination_status.status_label
+                  }
+                }
+                return child
+              } catch (error) {
+                console.error(`Failed to fetch status for child ${child.id}:`, error)
+                return child
+              }
+            })
+          )
+
+          // Count overdue children using the same logic as children list
+          overdueCount = childrenWithStatus.filter(child => 
+            child.apiStatus === "overdue"
+          ).length
         }
 
         if (appointmentsRes.data) {
@@ -101,7 +127,7 @@ export function HealthWorkerDashboard({ language: initialLanguage }: RoleDashboa
           childrenRegistered: childrenCount,
           vaccinationsToday,
           upcomingAppointments: appointmentsCount,
-          overdueVaccinations: alertsCount,
+          overdueVaccinations: overdueCount, // Use actual overdue count instead of alertsCount
           pendingToday,
           childrenThisWeek,
         })

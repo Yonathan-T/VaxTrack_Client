@@ -278,7 +278,7 @@ export async function administerVaccine(
 }
 
 // New: direct vaccination recording endpoint
-export async function recordVaccination(data: {
+export async function recordVaccination(childId: number, data: {
   vaccine_id: number;
   date_administered: string;
   batch_number: string;
@@ -288,7 +288,7 @@ export async function recordVaccination(data: {
   dose_number?: number;
   notes?: string;
 }) {
-  return apiClient.post(`/v1/vaccinations`, data);
+  return apiClient.post(`/v1/children/${childId}/vaccinate`, data);
 }
 
 export async function getInventory() {

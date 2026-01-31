@@ -9,6 +9,92 @@ import { useLanguage } from "@/lib/language-context"
 import { t } from "@/lib/translations"
 import { getChildDetails, getChildAppointments, type Child } from "@/lib/parent-api"
 
+// Ethiopian Date Conversion Function
+const getEthiopianDate = async (date: string, language: string) => {
+  try {
+    let gcDate: string = ""
+    
+    if (date.includes('/')) {
+      const parts = date.split('/')
+      if (parts.length === 3) {
+        const month = parts[0].padStart(2, '0')
+        const day = parts[1].padStart(2, '0')
+        const year = parts[2]
+        gcDate = `${year}-${month}-${day}`
+      }
+    } else if (date.includes('T')) {
+      const utcDate = new Date(date)
+      const ethiopianDateObj = new Date(utcDate.getTime() + (3 * 60 * 60 * 1000)) // Add 3 hours for Ethiopia
+      gcDate = ethiopianDateObj.toISOString().split('T')[0]
+    } else if (date.length === 10 && date.includes('-')) {
+      gcDate = date
+    } else {
+      const dateObj = new Date(date)
+      gcDate = dateObj.toISOString().split('T')[0]
+    }
+    
+    const response = await fetch(`https://api.ethioall.com/convert/api?gc=${gcDate}`)
+    const data = await response.json()
+    
+    if (data && data.length > 0) {
+      const ethDate = data[0]
+      const monthName = language === "en" ? ethDate.month_name.english : ethDate.month_name.amharic
+      const dayName = language === "en" ? ethDate.day_name.english : ethDate.day_name.amharic
+      
+      return {
+        date: `${ethDate.day} ${monthName} ${ethDate.year}`,
+        dayName: dayName,
+        fullDate: `${dayName}, ${ethDate.day} ${monthName} ${ethDate.year}`
+      }
+    }
+  } catch (error) {
+    console.error("Error converting to Ethiopian date:", error)
+    const dateObj = new Date(date)
+    const ethiopianYear = dateObj.getFullYear() - 8
+    const fallbackMonth = language === "en" ? "የካቲት" : "የካቲት"
+    const fallbackDay = language === "en" ? "ሐሙስ" : "ሐሙስ"
+    
+    return {
+      date: `${dateObj.getDate()} ${fallbackMonth} ${ethiopianYear}`,
+      dayName: fallbackDay,
+      fullDate: `${fallbackDay}, ${dateObj.getDate()} ${fallbackMonth} ${ethiopianYear}`
+    }
+  }
+  
+  return null
+}
+
+const EthiopianDateConverter = ({ date, language }: { date: string | null | undefined, language: string }) => {
+  const [ethiopianDate, setEthiopianDate] = useState<string>("")
+  const [loading, setLoading] = useState<boolean>(false)
+
+  useEffect(() => {
+    const convertToEthiopian = async () => {
+      if (!date) return
+      
+      setLoading(true)
+      try {
+        const result = await getEthiopianDate(date, language)
+        if (result) {
+          setEthiopianDate(result.fullDate)
+        }
+      } catch (error) {
+        console.error("Error in Ethiopian date conversion:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    convertToEthiopian()
+  }, [date, language])
+
+  if (loading) {
+    return <span className="text-xs text-muted-foreground">Loading...</span>
+  }
+
+  return <span className="text-xs text-muted-foreground">{ethiopianDate || "N/A"}</span>
+}
+
 interface ParentChildDetailsProps {
   childId: string
 }
@@ -37,7 +123,6 @@ export function ParentChildDetails({ childId }: ParentChildDetailsProps) {
 
         if (appointmentsResponse.data) {
           const appointmentsData = appointmentsResponse.data as any
-          // The API client already extracts the 'data' field, so appointmentsData is the array
           setAppointments(Array.isArray(appointmentsData) ? appointmentsData : [])
         }
       } catch (err) {
@@ -46,8 +131,11 @@ export function ParentChildDetails({ childId }: ParentChildDetailsProps) {
         setIsLoading(false)
       }
     }
+
     fetchDetails()
   }, [childId])
+
+  const vaccinationRecords = appointments.flatMap(apt => apt.vaccination_records || [])
 
   if (isLoading) {
     return (
@@ -144,58 +232,118 @@ export function ParentChildDetails({ childId }: ParentChildDetailsProps) {
               {/* Vertical line for timeline */}
               <div className="absolute left-4 top-2 bottom-2 w-0.5 bg-border hidden md:block" />
 
-              {(!child.vaccination_records || child.vaccination_records.length === 0) ? (
+              {(!vaccinationRecords || vaccinationRecords.length === 0) ? (
                 <div className="py-10 text-center">
                   <p className="text-muted-foreground italic">
                     {language === "am" ? "ምንም የክትባት መረጃ የለም" : "No vaccination records found"}
                   </p>
                 </div>
               ) : (
-                child.vaccination_records.map((record, index) => (
-                  <div key={record.id} className="relative pl-0 md:pl-10">
-                    {/* Circle on timeline */}
-                    <div className={`absolute left-2.5 md:left-2 -translate-x-1/2 top-2 h-4 w-4 rounded-full border-4 border-background shadow-sm hidden md:block z-10 ${record.status === "completed" ? "bg-green-500" :
-                      record.status === "overdue" ? "bg-red-500" : "bg-blue-400"
-                      }`} />
+                vaccinationRecords.map((record, index) => {
+                  const scheduledDate = record.scheduled_at ? new Date(record.scheduled_at).toLocaleDateString() : 
+                    record.scheduled_date ? new Date(record.scheduled_date).toLocaleDateString() : 
+                    record.due_date ? new Date(record.due_date).toLocaleDateString() : "Not scheduled"
+                  
+                  const scheduledTime = record.scheduled_at ? new Date(record.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) :
+                    record.scheduled_date ? new Date(record.scheduled_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ""
+                  
+                  // Calculate correct status based on today's date
+                  const today = new Date()
+                  today.setHours(0, 0, 0, 0)
+                  
+                  const scheduledDateObj = new Date(record.scheduled_at || record.scheduled_date)
+                  scheduledDateObj.setHours(0, 0, 0, 0)
+                  
+                  let calculatedStatus = record.status
+                  
+                  // Override API status if it's wrong
+                  if (record.status === "scheduled" && scheduledDateObj < today) {
+                    calculatedStatus = "overdue"
+                  }
+                  
+                  return (
+                    <div key={record.id} className="relative pl-0 md:pl-10">
+                      {/* Circle on timeline */}
+                      <div className={`absolute left-2.5 md:left-2 -translate-x-1/2 top-2 h-4 w-4 rounded-full border-4 border-background shadow-sm hidden md:block z-10 ${calculatedStatus === "completed" ? "bg-green-500" :
+                        calculatedStatus === "overdue" ? "bg-red-500" : "bg-blue-400"
+                        }`} />
 
-                    <div className={`p-4 rounded-xl border transition-all ${record.status === "completed" ? "bg-green-50/30 border-green-100" :
-                      record.status === "overdue" ? "bg-red-50/30 border-red-100 shadow-sm ring-1 ring-red-200" :
-                        "bg-muted/30 border-border"
-                      }`}>
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="space-y-1">
-                          <h4 className="font-bold text-foreground text-lg">{record.vaccine.name}</h4>
-                          <p className="text-sm text-muted-foreground leading-relaxed">
-                            {record.vaccine.description}
-                          </p>
-                          <div className="flex flex-wrap gap-4 mt-3">
-                            {record.date_administered ? (
-                              <div className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded font-medium flex items-center gap-1">
-                                <CheckCircle2 className="h-3 w-3" />
-                                {language === "am" ? "የተሰጠበት ቀን:" : "Administered:"} {new Date(record.date_administered).toLocaleDateString()}
-                              </div>
-                            ) : (
-                              <div className={`text-xs px-2 py-0.5 rounded font-medium ${record.status === "overdue" ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
+                      <div className={`p-4 rounded-xl border transition-all ${calculatedStatus === "completed" ? "bg-green-50/30 dark:bg-green-900/20 border-green-100 dark:border-green-700" :
+                        calculatedStatus === "overdue" ? "bg-orange-50/30 dark:bg-orange-900/20 border-orange-100 dark:border-orange-700 shadow-sm ring-1 ring-orange-200 dark:ring-orange-800" :
+                          "bg-muted/30 dark:bg-muted/20 border-border"
+                        }`}>
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="space-y-1 flex-1">
+                            <h4 className="font-bold text-foreground text-lg">{record.vaccine?.name || record.vaccineName || "Unknown Vaccine"}</h4>
+                            <p className="text-sm text-muted-foreground leading-relaxed">
+                              {record.vaccine?.description || record.vaccineDescription || "Vaccination"}
+                            </p>
+                            <div className="flex flex-wrap gap-4 mt-3">
+                              {record.date_administered ? (
+                                <div className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-0.5 rounded font-medium flex items-center gap-1">
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  {language === "am" ? "የተሰጠበት ቀን:" : "Administered:"} {new Date(record.date_administered).toLocaleDateString()}
+                                </div>
+                              ) : (
+                                <div className={`text-xs px-2 py-0.5 rounded font-medium ${calculatedStatus === "overdue" ? "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300" : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
                                 }`}>
-                                {record.status === "overdue"
-                                  ? (language === "am" ? "ካለፈበት ቀን:" : "Overdue since:")
-                                  : (language === "am" ? "ቀጠሮ:" : "Scheduled:")} {new Date(record.scheduled_date).toLocaleDateString()}
+                                  {calculatedStatus === "overdue"
+                                    ? (language === "am" ? "ካለፈበት ቀን:" : "Overdue since: ") + scheduledDate
+                                    : (language === "am" ? "ቀጠሮ:" : "Scheduled: ") + scheduledDate + (scheduledTime ? ` at ${scheduledTime}` : "")
+                                  }
+                                </div>
+                              )}
+                              {calculatedStatus !== "completed" && scheduledTime && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  Ethiopian Time: {(() => {
+                                    const utcTime = new Date(record.scheduled_at || record.scheduled_date)
+                                    const ethiopianTime = new Date(utcTime.getTime() + (3 * 60 * 60 * 1000))
+                                    return ethiopianTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+                                  })()}
+                                </div>
+                              )}
+                              {calculatedStatus !== "completed" && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  Ethiopian Date: <EthiopianDateConverter 
+                                    date={record.scheduled_at || record.scheduled_date}
+                                    language={language}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                            {calculatedStatus === "overdue" && (
+                              <div className="mt-3 p-3 bg-orange-100 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-700">
+                                <p className="text-sm font-medium text-orange-800 dark:text-orange-300 mb-2">
+                                  {language === "am" ? "⚠️ ይህልሱ!" : "⚠️ Action Needed!"}
+                                </p>
+                                <p className="text-xs text-orange-700 dark:text-orange-400">
+                                  {language === "am" 
+                                    ? "ይህልሱውን ለጡናውን ይህልሱውን እንዲያገኙ ወደ ቅርባት ጣቢያ ይሂዱ" 
+                                    : "Please visit your nearest health center to get your child vaccinated"}
+                                </p>
                               </div>
                             )}
                           </div>
+                          <div className="flex flex-col items-end gap-2">
+                            <Badge className={`uppercase text-[10px] tracking-wider px-2 py-0 ${calculatedStatus === "completed" ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 hover:bg-green-100 border-none" :
+                              calculatedStatus === "overdue" ? "bg-orange-500 text-white hover:bg-orange-600 border-none" :
+                                "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 border-none"
+                              }`}>
+                              {calculatedStatus === "completed" ? (language === "am" ? "ተጠናቋል" : "Completed") :
+                                calculatedStatus === "overdue" ? (language === "am" ? "ያስፈለግበት" : "Action Needed") :
+                                  (language === "am" ? "በቅርቡ" : "Coming Up")}
+                            </Badge>
+                            {record.visit_number && (
+                              <Badge variant="secondary" className="w-fit text-xs">
+                                Visit {record.visit_number}
+                              </Badge>
+                            )}
+                          </div>
                         </div>
-                        <Badge className={`uppercase text-[10px] tracking-wider px-2 py-0 ${record.status === "completed" ? "bg-green-100 text-green-700 hover:bg-green-100 border-none" :
-                          record.status === "overdue" ? "bg-red-500 text-white hover:bg-red-500 border-none pulse-red" :
-                            "bg-blue-100 text-blue-700 hover:bg-blue-100 border-none"
-                          }`}>
-                          {record.status === "completed" ? (language === "am" ? "ተጠናቋል" : "Completed") :
-                            record.status === "overdue" ? (language === "am" ? "ወሳኝ!" : "Critical!") :
-                              (language === "am" ? "በቅርቡ" : "Coming Up")}
-                        </Badge>
                       </div>
                     </div>
-                  </div>
-                ))
+                  )
+                })
               )}
             </div>
           </Card>
@@ -218,39 +366,85 @@ export function ParentChildDetails({ childId }: ParentChildDetailsProps) {
                   </p>
                 </div>
               ) : (
-                appointments.map((apt) => (
-                  <div key={apt.id} className="p-4 rounded-xl border border-border bg-card flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                        <Calendar className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-foreground">
-                          {apt.scheduled_at ? new Date(apt.scheduled_at).toLocaleDateString() : new Date(apt.appointment_date || '').toLocaleDateString()} 
-                          {apt.scheduled_at && ` at ${new Date(apt.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
-                        </p>
-                        <p className="text-sm text-muted-foreground italic">
-                          {apt.notes || (language === "am" ? "ምንም ማስታወሻ የለም" : "No notes from health worker")}
-                        </p>
-                        {apt.ethiopian_time && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Ethiopian Time: {apt.ethiopian_time}
+                appointments.map((apt) => {
+                  const appointmentDate = new Date(apt.scheduled_at || apt.appointment_date || '')
+                  const today = new Date()
+                  today.setHours(0, 0, 0, 0)
+                  const appointmentDay = new Date(appointmentDate)
+                  appointmentDay.setHours(0, 0, 0, 0)
+                  
+                  const isPast = appointmentDay < today
+                  const isMissed = isPast && apt.status === 'scheduled'
+                  const isCompleted = apt.status === 'completed'
+                  
+                  // Count vaccines in this appointment
+                  const vaccineCount = apt.vaccination_records?.length || 0
+                  
+                  return (
+                    <div 
+                      key={apt.id} 
+                      className={`p-4 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                        isPast 
+                          ? 'bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-700' 
+                          : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
+                          isPast 
+                            ? 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300' 
+                            : 'bg-green-200 dark:bg-green-700 text-green-600 dark:text-green-300'
+                        }`}>
+                          <Calendar className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-foreground">
+                            {apt.notes || (language === "am" ? "ጉዳል ቀጠሮ" : "Scheduled Visit")}
                           </p>
+                          <p className="text-sm text-muted-foreground">
+                            {appointmentDate.toLocaleDateString()} 
+                            {apt.scheduled_at && ` at ${appointmentDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {language === "am" ? `ቫለውን ${vaccineCount} ክትባቶች` : `${vaccineCount} vaccines scheduled`}
+                          </p>
+                          {apt.scheduled_at && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Ethiopian Date: <EthiopianDateConverter 
+                                date={apt.scheduled_at}
+                                language={language}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          variant="outline" 
+                          className={`w-fit ${
+                            isMissed 
+                              ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700' 
+                              : isCompleted 
+                                ? 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600'
+                                : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-700'
+                          }`}
+                        >
+                          {isMissed 
+                            ? (language === "am" ? "ተወዋ" : "Missed")
+                            : isCompleted 
+                              ? (language === "am" ? "ተጠናቋል" : "Completed")
+                              : (language === "am" ? "ተያዘ" : "Scheduled")
+                          }
+                        </Badge>
+                        {apt.visit_number && (
+                          <Badge variant="secondary" className="w-fit">
+                            Visit {apt.visit_number}
+                          </Badge>
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="w-fit">
-                        {apt.status}
-                      </Badge>
-                      {apt.visit_number && (
-                        <Badge variant="secondary" className="w-fit">
-                          Visit {apt.visit_number}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                ))
+                  )
+                })
               )}
             </div>
           </Card>
