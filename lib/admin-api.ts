@@ -264,3 +264,34 @@ export async function receiveInventory(data: {
 }) {
   return apiClient.post("/v1/inventory/receive", data)
 }
+
+export interface SubCity {
+  id: number
+  name: string
+  created_at: string
+  updated_at: string
+  facilities_count: number
+  users_count: number
+  facilities: Array<{
+    id: number
+    name: string
+    location: string
+    phone: string
+    address: string
+    woreda: string | null
+    registration_code: string
+    daily_capacity: number
+    num_nurses: number | null
+    opens_at: string
+    closes_at: string
+    lunch_starts_at: string
+    lunch_ends_at: string
+    sub_city_id: number
+    created_at: string
+    updated_at: string
+  }>
+}
+
+export async function getSubCities() {
+  return apiClient.get<{ success: boolean; data: SubCity[] }>("/v1/admin/sub-cities")
+}

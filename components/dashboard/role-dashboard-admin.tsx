@@ -309,27 +309,53 @@ export function AdminDashboard({ language: initialLanguage }: RoleDashboardProps
           >
             <h4 className="font-medium text-foreground">{t("dashboard.nav.children", language)}</h4>
             <p className="text-sm text-muted-foreground mt-1">
-              {language === "am" ? "ልጆችን ይፈልጉ፣ ይመዝግቡ እና መዝገቦቻቸውን ይመልከቱ" : "View and manage registered children across facilities."}
+              {language === "am" 
+                ? "በሁሉም ተቋማት የተመዘጉ ልጆችን ይመልከቱ" 
+                : user?.role === "admin" && !user?.facility_id
+                  ? "View registered children across all facilities."
+                  : "View and manage registered children across facilities."}
             </p>
           </div>
-          <div
-            className="p-4 border border-border rounded-lg hover:bg-muted cursor-pointer transition hover:shadow-md"
-            onClick={() => router.push("/dashboard/vaccinations")}
-          >
-            <h4 className="font-medium text-foreground">{t("dashboard.nav.vaccinations", language)}</h4>
-            <p className="text-sm text-muted-foreground mt-1">
-              {language === "am" ? "የክትባት እቅዶችን እና መመዝገቦችን ይከታተሉ" : "Track vaccination activity and performance."}
-            </p>
-          </div>
-          <div
-            className="p-4 border border-border rounded-lg hover:bg-muted cursor-pointer transition hover:shadow-md"
-            onClick={() => router.push("/dashboard/appointments")}
-          >
-            <h4 className="font-medium text-foreground">{t("dashboard.nav.appointments", language)}</h4>
-            <p className="text-sm text-muted-foreground mt-1">
-              {language === "am" ? "ቀጠሮዎችን ይመልከቱ እና ያስተዳድሩ" : "Review scheduled visits and upcoming demand."}
-            </p>
-          </div>
+          
+          {/* Only show Vaccinations for Local Admin */}
+          {user?.role === "admin" && user?.facility_id && (
+            <div
+              className="p-4 border border-border rounded-lg hover:bg-muted cursor-pointer transition hover:shadow-md"
+              onClick={() => router.push("/dashboard/vaccinations")}
+            >
+              <h4 className="font-medium text-foreground">{t("dashboard.nav.vaccinations", language)}</h4>
+              <p className="text-sm text-muted-foreground mt-1">
+                {language === "am" ? "የክትባት እቅዶችን እና መመዝገቦችን ይከታተሉ" : "Track vaccination activity and performance."}
+              </p>
+            </div>
+          )}
+          
+          {/* Only show Appointments for Local Admin */}
+          {user?.role === "admin" && user?.facility_id && (
+            <div
+              className="p-4 border border-border rounded-lg hover:bg-muted cursor-pointer transition hover:shadow-md"
+              onClick={() => router.push("/dashboard/appointments")}
+            >
+              <h4 className="font-medium text-foreground">{t("dashboard.nav.appointments", language)}</h4>
+              <p className="text-sm text-muted-foreground mt-1">
+                {language === "am" ? "ቀጠሮዎችን ይመልከቱ እና ያስተዳድሩ" : "Review scheduled visits and upcoming demand."}
+              </p>
+            </div>
+          )}
+          
+          {/* Show Sub Cities for Super Admin */}
+          {user?.role === "admin" && !user?.facility_id && (
+            <div
+              className="p-4 border border-border rounded-lg hover:bg-muted cursor-pointer transition hover:shadow-md"
+              onClick={() => router.push("/dashboard/sub-cities")}
+            >
+              <h4 className="font-medium text-foreground">{t("dashboard.nav.subCities", language)}</h4>
+              <p className="text-sm text-muted-foreground mt-1">
+                {language === "am" ? "ንዑስ ከተማዎችን እና ተቋማትን ይመልከቱ እና ያስተዳድሩ" : "View and manage sub-cities and their facilities."}
+              </p>
+            </div>
+          )}
+          
           <div
             className="p-4 border border-border rounded-lg hover:bg-muted cursor-pointer transition hover:shadow-md"
             onClick={() => router.push("/dashboard/reports")}

@@ -9,6 +9,7 @@ import { useLanguage } from "@/lib/language-context"
 import { getAppointmentsForChild, type Appointment } from "@/lib/healthcare-worker-api"
 import { useToast } from "@/hooks/use-toast"
 import { RescheduleAppointmentModal } from "./reschedule-appointment-modal"
+import { useUser } from "@/lib/user-context"
 
 // Ethiopian Date Conversion Function
 const getEthiopianDate = async (date: string, language: string) => {
@@ -99,11 +100,15 @@ const EthiopianDateConverter = ({ date, language }: { date: string | null | unde
 
 export function ChildAppointments({ childId }: { childId: string }) {
   const { language } = useLanguage()
+  const { user } = useUser()
   const { toast } = useToast()
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
   const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false)
+
+  // Check if user can manage appointments - only healthcare workers can reschedule
+  const canManageAppointments = user?.role === "healthcare_worker"
 
   const fetchAppointments = async () => {
     try {
@@ -351,7 +356,7 @@ export function ChildAppointments({ childId }: { childId: string }) {
                         Visit {apt.visit_number}
                       </Badge>
                     )}
-                    {apt.status === "scheduled" && (
+                    {apt.status === "scheduled" && canManageAppointments && (
                       <Button
                         variant="outline"
                         size="sm"

@@ -137,14 +137,21 @@ export function DashboardNav() {
           href: "/dashboard/users",
           icon: Users,
         });
-        items.push({
-          title: t("dashboard.nav.appointments", language),
-          href: "/dashboard/appointments",
-          icon: Calendar,
-        });
 
-        // Super admin specific: Facilities access
+        // Super admin specific: Sub Cities instead of Appointments, Facilities, Inventory
         if (isSuperAdmin) {
+          items.push({
+            title: t("dashboard.nav.subCities", language),
+            href: "/dashboard/sub-cities",
+            icon: Building,
+          });
+        } else {
+          // Local admin gets Appointments
+          items.push({
+            title: t("dashboard.nav.appointments", language),
+            href: "/dashboard/appointments",
+            icon: Calendar,
+          });
           items.push({
             title: t("dashboard.nav.facilities", language),
             href: "/dashboard/facilities",
@@ -152,17 +159,21 @@ export function DashboardNav() {
           });
         }
 
-        // Both admins get inventory, logs, reports
-        items.push({
-          title: t("dashboard.nav.inventory", language),
-          href: "/dashboard/inventory",
-          icon: Package,
-        });
-        items.push({
-          title: t("dashboard.nav.inventoryLogs", language),
-          href: "/dashboard/inventory-logs",
-          icon: History,
-        });
+        // Local admin gets inventory and logs, super admin doesn't
+        if (isLocalAdmin) {
+          items.push({
+            title: t("dashboard.nav.inventory", language),
+            href: "/dashboard/inventory",
+            icon: Package,
+          });
+          items.push({
+            title: t("dashboard.nav.inventoryLogs", language),
+            href: "/dashboard/inventory-logs",
+            icon: History,
+          });
+        }
+
+        // Both admins get reports
         items.push({
           title: t("dashboard.nav.reports", language),
           href: "/dashboard/reports",
@@ -189,29 +200,14 @@ export function DashboardNav() {
           icon: Users,
         },
         {
-          title: t("dashboard.nav.appointments", language),
-          href: "/dashboard/appointments",
-          icon: Calendar,
-        },
-        {
-          title: t("dashboard.nav.facilities", language),
-          href: "/dashboard/facilities",
+          title: t("dashboard.nav.subCities", language),
+          href: "/dashboard/sub-cities",
           icon: Building,
         },
         {
           title: t("dashboard.nav.reports", language),
           href: "/dashboard/reports",
           icon: BarChart3,
-        },
-        {
-          title: t("dashboard.nav.inventory", language),
-          href: "/dashboard/inventory",
-          icon: Package,
-        },
-        {
-          title: t("dashboard.nav.inventoryLogs", language),
-          href: "/dashboard/inventory-logs",
-          icon: History,
         },
         {
           title: t("dashboard.nav.settings", language),

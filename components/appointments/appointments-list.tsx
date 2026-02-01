@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { useUser } from "@/lib/user-context"
 
 interface Appointment {
   id: string
@@ -59,6 +60,7 @@ interface AppointmentsListProps {
 
 export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
   const { language } = useLanguage()
+  const { user } = useUser()
   const { toast } = useToast()
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -75,6 +77,9 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
   const [isLoadingDetails, setIsLoadingDetails] = useState(false)
   const [newDate, setNewDate] = useState("")
   const [newTime, setNewTime] = useState("")
+
+  // Check if user can manage appointments - only healthcare workers can reschedule/cancel/checkin
+  const canManageAppointments = user?.role === "healthcare_worker"
 
   const fetchAppointments = async (showRefreshIndicator = false) => {
     try {
@@ -583,42 +588,48 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
                             <Phone className="h-3 w-3" />
                             {t("appointments.call", language) || "Call"}
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1 bg-transparent"
-                            onClick={() => handleReschedule(appointment)}
-                            disabled={checkedIn || appointment.status === "cancelled" || appointment.status === "completed"}
-                          >
-                            <Calendar className="h-3 w-3" />
-                            {t("appointments.reschedule", language) || "Reschedule"}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1 bg-transparent text-destructive hover:text-destructive"
-                            onClick={() => handleCancel(appointment)}
-                            disabled={checkedIn || appointment.status === "cancelled" || appointment.status === "completed"}
-                          >
-                            <X className="h-3 w-3" />
-                            {t("appointments.cancel", language) || "Cancel"}
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => handleCheckinClick(appointment)}
-                            disabled={checkedIn}
-                            variant={checkedIn ? "secondary" : "default"}
-                            className={cn("gap-1", checkedIn && "bg-green-600")}
-                          >
-                            {checkedIn ? (
-                              <>
-                                <CheckCircle className="h-3 w-3" />
-                                {t("appointments.checkedIn", language) || "Checked In"}
-                              </>
-                            ) : (
-                              t("appointments.checkIn", language) || "Check In"
-                            )}
-                          </Button>
+                          {canManageAppointments && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1 bg-transparent"
+                              onClick={() => handleReschedule(appointment)}
+                              disabled={checkedIn || appointment.status === "cancelled" || appointment.status === "completed"}
+                            >
+                              <Calendar className="h-3 w-3" />
+                              {t("appointments.reschedule", language) || "Reschedule"}
+                            </Button>
+                          )}
+                          {canManageAppointments && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1 bg-transparent text-destructive hover:text-destructive"
+                              onClick={() => handleCancel(appointment)}
+                              disabled={checkedIn || appointment.status === "cancelled" || appointment.status === "completed"}
+                            >
+                              <X className="h-3 w-3" />
+                              {t("appointments.cancel", language) || "Cancel"}
+                            </Button>
+                          )}
+                          {canManageAppointments && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleCheckinClick(appointment)}
+                              disabled={checkedIn}
+                              variant={checkedIn ? "secondary" : "default"}
+                              className={cn("gap-1", checkedIn && "bg-green-600")}
+                            >
+                              {checkedIn ? (
+                                <>
+                                  <CheckCircle className="h-3 w-3" />
+                                  {t("appointments.checkedIn", language) || "Checked In"}
+                                </>
+                              ) : (
+                                t("appointments.checkIn", language) || "Check In"
+                              )}
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>

@@ -137,11 +137,7 @@ export function DashboardHeader() {
                       key={notification.id}
                       className="flex flex-col items-start py-3 px-3 cursor-pointer hover:bg-muted"
                       onClick={() => {
-                        if (user?.role === 'parent') {
-                          router.push("/dashboard/settings")
-                        } else {
-                          router.push("/dashboard/notifications")
-                        }
+                        router.push("/dashboard/settings")
                       }}
                     >
                       <div className="flex items-start gap-3 w-full">
@@ -178,11 +174,7 @@ export function DashboardHeader() {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => {
-                  if (user?.role === 'parent') {
-                    router.push("/dashboard/settings")
-                  } else {
-                    router.push("/dashboard/notifications")
-                  }
+                  router.push("/dashboard/settings")
                 }}
                 className="text-primary font-medium cursor-pointer"
               >

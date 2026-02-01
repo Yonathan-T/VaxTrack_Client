@@ -10,13 +10,18 @@ import { t } from "@/lib/translations"
 import { EditChildModal } from "./edit-child-modal"
 import { getChildProfile, type ChildProfile } from "@/lib/healthcare-worker-api"
 import { useToast } from "@/hooks/use-toast"
+import { useUser } from "@/lib/user-context"
 
 export function ChildProfile({ childId }: { childId: string }) {
   const { language } = useLanguage()
+  const { user } = useUser()
   const { toast } = useToast()
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [child, setChild] = useState<ChildProfile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+
+  // Check if user can edit - only healthcare workers can edit
+  const canEditChild = user?.role === "healthcare_worker"
 
   useEffect(() => {
     const fetchChildData = async () => {
@@ -118,10 +123,12 @@ export function ChildProfile({ childId }: { childId: string }) {
               </div>
             </div>
           </div>
-          <Button size="sm" variant="outline" onClick={() => setIsEditOpen(true)}>
-            <Edit className="h-4 w-4 mr-2" />
-            {t("dashboard.actions.edit", language) || "Edit"}
-          </Button>
+          {canEditChild && (
+            <Button size="sm" variant="outline" onClick={() => setIsEditOpen(true)}>
+              <Edit className="h-4 w-4 mr-2" />
+              {t("dashboard.actions.edit", language) || "Edit"}
+            </Button>
+          )}
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">

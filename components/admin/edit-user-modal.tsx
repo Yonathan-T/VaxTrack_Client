@@ -11,7 +11,8 @@ import { useLanguage } from "@/lib/language-context"
 import { useToast } from "@/hooks/use-toast"
 import { apiClient } from "@/lib/api-client"
 import type { User, Facility } from "@/lib/admin-api"
-import { getFacilities } from "@/lib/admin-api"
+import { getFacilities, getSubCities, type SubCity } from "@/lib/admin-api"
+import { useUser } from "@/lib/user-context"
 
 interface EditUserModalProps {
   isOpen: boolean
@@ -22,33 +23,66 @@ interface EditUserModalProps {
 
 export function EditUserModal({ isOpen, onClose, user, onUserSaved }: EditUserModalProps) {
   const { language } = useLanguage()
+  const { user: currentUser } = useUser()
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    role: "healthcare_worker",
+    role: "health_official", // Default to health_official for super admin
     facility_id: null as string | number | null,
+    sub_city_id: null as string | number | null,
     status: "active" as "active" | "inactive" | "pending",
   })
   const [facilities, setFacilities] = useState<Facility[]>([])
+  const [subCities, setSubCities] = useState<SubCity[]>([])
+
+  // Check if current user is super admin (super_admin role OR admin role with no facility)
+  const isSuperAdmin = currentUser?.role === "super_admin" || (currentUser?.role === "admin" && !currentUser?.facility_id)
+  // Check if current user is local admin (admin role with a facility)
+  const isLocalAdmin = currentUser?.role === "admin" && currentUser?.facility_id
+
+  // Debug logging to check user detection
+  // console.log("[EditUserModal] User detection:", {
+  //   currentUserRole: currentUser?.role,
+  //   currentUserFacilityId: currentUser?.facility_id,
+  //   currentUserIsGlobal: currentUser?.is_global,
+  //   currentUserIsLocal: currentUser?.is_local,
+  //   isSuperAdmin,
+  //   isLocalAdmin
+  // })
 
   useEffect(() => {
-    const loadFacilities = async () => {
+    const loadData = async () => {
       try {
-        const res = await getFacilities()
-        const payload: any = res.data
-        const fArray =
-          (Array.isArray(payload?.facilities) && payload.facilities) ||
-          (Array.isArray(payload?.data) && payload.data) ||
-          []
-        setFacilities(fArray as Facility[])
+        if (isSuperAdmin) {
+          // Load sub-cities for super admin
+          const res = await getSubCities()
+          const payload: any = res.data
+          const scArray = Array.isArray(payload?.data) ? payload.data : []
+          setSubCities(scArray as SubCity[])
+        } else if (isLocalAdmin) {
+          // Load only the local admin's facility
+          setFacilities([{
+            id: currentUser?.facility_id,
+            name: currentUser?.facility || "Current Facility"
+          } as Facility])
+        } else {
+          // Load facilities for other admins
+          const res = await getFacilities()
+          const payload: any = res.data
+          const fArray =
+            (Array.isArray(payload?.facilities) && payload.facilities) ||
+            (Array.isArray(payload?.data) && payload.data) ||
+            []
+          setFacilities(fArray as Facility[])
+        }
       } catch (e) {
         // ignore silently; dropdown will be empty
       }
     }
-    if (isOpen) loadFacilities()
-  }, [isOpen])
+    if (isOpen) loadData()
+  }, [isOpen, isSuperAdmin, isLocalAdmin, currentUser])
 
   useEffect(() => {
     if (user) {
@@ -57,18 +91,20 @@ export function EditUserModal({ isOpen, onClose, user, onUserSaved }: EditUserMo
         email: user.email,
         role: user.role,
         facility_id: (user as any).facility_id ?? null,
+        sub_city_id: (user as any).sub_city_id ?? null,
         status: user.status,
       })
     } else {
       setFormData({
         name: "",
         email: "",
-        role: "healthcare_worker",
-        facility_id: null,
+        role: isSuperAdmin ? "health_official" : isLocalAdmin ? "healthcare_worker" : "healthcare_worker",
+        facility_id: isLocalAdmin ? (currentUser?.facility_id || null) : null,
+        sub_city_id: null,
         status: "active",
       })
     }
-  }, [user, isOpen])
+  }, [user, isOpen, isSuperAdmin, isLocalAdmin, currentUser])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -93,7 +129,8 @@ export function EditUserModal({ isOpen, onClose, user, onUserSaved }: EditUserMo
         email: formData.email,
         role: formData.role,
         status: formData.status,
-        facility_id: formData.facility_id ?? null,
+        facility_id: isSuperAdmin ? null : (isLocalAdmin ? currentUser?.facility_id : formData.facility_id),
+        sub_city_id: isSuperAdmin ? formData.sub_city_id : null,
       }
 
       const { data, error } = await (method === "POST"
@@ -173,34 +210,77 @@ export function EditUserModal({ isOpen, onClose, user, onUserSaved }: EditUserMo
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="healthcare_worker">
-                    {language === "am" ? "ጤና ሰራተኛ" : "Healthcare Worker"}
-                  </SelectItem>
-                  <SelectItem value="woreda_officer">{language === "am" ? "ወረዳ ኦፊሰር" : "Woreda Officer"}</SelectItem>
-                  <SelectItem value="administrator">{language === "am" ? "አስተዳዳሪ" : "Administrator"}</SelectItem>
-                  <SelectItem value="data_clerk">{language === "am" ? "ውሂብ ተከላካይ" : "Data Clerk"}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="facility_id">{language === "am" ? "ጤና ተቋም" : "Facility"}</Label>
-              <Select
-                value={formData.facility_id != null ? String(formData.facility_id) : ""}
-                onValueChange={(value) => setFormData({ ...formData, facility_id: value === "" ? null : value })}
-              >
-                <SelectTrigger id="facility_id">
-                  <SelectValue placeholder={language === "am" ? "ተቋም ይምረጡ" : "Select facility (optional)"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">{language === "am" ? "አንዳችም" : "None (Super Admin)"}</SelectItem>
-                  {facilities.map((f) => (
-                    <SelectItem key={String((f as any).id)} value={String((f as any).id)}>
-                      {f.name}
+                  {isSuperAdmin ? (
+                    // Super admin can only create Health Officials
+                    <SelectItem value="health_official">
+                      {language === "am" ? "ጤና ኃላፊ" : "Health Official"}
                     </SelectItem>
-                  ))}
+                  ) : isLocalAdmin ? (
+                    // Local admin can create Healthcare Workers and Parents only
+                    <>
+                      <SelectItem value="healthcare_worker">
+                        {language === "am" ? "ጤና ሰራተኛ" : "Healthcare Worker"}
+                      </SelectItem>
+                      <SelectItem value="parent">
+                        {language === "am" ? "ወላጅ" : "Parent"}
+                      </SelectItem>
+                    </>
+                  ) : (
+                    // Other admins can create various roles
+                    <>
+                      <SelectItem value="healthcare_worker">
+                        {language === "am" ? "ጤና ሰራተኛ" : "Healthcare Worker"}
+                      </SelectItem>
+                      <SelectItem value="woreda_officer">{language === "am" ? "ወረዳ ኦፊሰር" : "Woreda Officer"}</SelectItem>
+                      <SelectItem value="administrator">{language === "am" ? "አስተዳዳሪ" : "Administrator"}</SelectItem>
+                      <SelectItem value="data_clerk">{language === "am" ? "ውሂብ ተከላካይ" : "Data Clerk"}</SelectItem>
+                    </>
+                  )}
                 </SelectContent>
               </Select>
             </div>
+            {isSuperAdmin && (
+              <div>
+                <Label htmlFor="sub_city_id">{language === "am" ? "ንዑስ ከተማ" : "Sub City"}</Label>
+                <Select
+                  value={formData.sub_city_id != null ? String(formData.sub_city_id) : ""}
+                  onValueChange={(value) => setFormData({ ...formData, sub_city_id: value === "" ? null : value })}
+                >
+                  <SelectTrigger id="sub_city_id">
+                    <SelectValue placeholder={language === "am" ? "ንዑስ ከተማ ይምረጡ" : "Select sub city"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">{language === "am" ? "አንዳችም" : "None"}</SelectItem>
+                    {subCities.map((sc) => (
+                      <SelectItem key={String((sc as any).id)} value={String((sc as any).id)}>
+                        {sc.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {!isSuperAdmin && !isLocalAdmin && (
+              <div>
+                <Label htmlFor="facility_id">{language === "am" ? "ጤና ተቋም" : "Facility"}</Label>
+                <Select
+                  value={formData.facility_id != null ? String(formData.facility_id) : ""}
+                  onValueChange={(value) => setFormData({ ...formData, facility_id: value === "" ? null : value })}
+                >
+                  <SelectTrigger id="facility_id">
+                    <SelectValue placeholder={language === "am" ? "ተቋም ይምረጡ" : "Select facility (optional)"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">{language === "am" ? "አንዳችም" : "None (Super Admin)"}</SelectItem>
+                    {facilities.map((f) => (
+                      <SelectItem key={String((f as any).id)} value={String((f as any).id)}>
+                        {f.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
           {isEdit && (

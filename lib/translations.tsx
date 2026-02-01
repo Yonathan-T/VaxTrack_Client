@@ -192,6 +192,7 @@ export const translations = {
     "dashboard.nav.notifications": "Notifications",
     "dashboard.nav.facilities": "Facilities",
     "dashboard.nav.users": "Users",
+    "dashboard.nav.subCities": "Sub Cities",
 
     // Dashboard Header
     "dashboard.header.vaxtrack": "VaxTrack",
@@ -827,6 +828,9 @@ export const translations = {
     "dashboard.nav.campaigns": "ዘመቻዎች",
     "dashboard.nav.settings": "ቅንብሮች",
     "dashboard.nav.notifications": "ማስታወቂያዎች",
+    "dashboard.nav.facilities": "ተቋማት",
+    "dashboard.nav.users": "ተጠቃሚዎች",
+    "dashboard.nav.subCities": "ንዑስ ከተማዎች",
     "reports.title": "ግንዛቤዎች እና ትንታኔዎች",
     "reports.subtitle": "አጠቃላይ የክትባት ሽፋን እና የአፈጻጸም መለኪያዎች",
     "reports.filter": "አጣራ",
@@ -1280,8 +1284,6 @@ export const translations = {
     "epi.note3": "ሁሉም ክትባቶች በተለያዩ የሰውነት ክፍሎች ላይ በአንድ ጊዜ ሊሰጡ ይችላሉ",
     "epi.note4": "ለሁሉም ክትባቶች የቀዝቃዛ ሰንሰለት መስፈርቶችን ይጠብቁ",
     "epi.note5": "ሁሉንም ክትባቶች ከባች ቁጥሮች እና ማለፊያ ቀናት ጋር ይመዝግቡ",
-    "dashboard.nav.facilities": "ተቋማት",
-    "dashboard.nav.users": "ተጠቃሚዎች",
   },
 }
 

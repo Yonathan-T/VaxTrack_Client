@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
-import { getFacilities, getUsers, createUser, deleteUser, type Facility, type User as AdminUser } from "@/lib/admin-api"
+import { getFacilities, getUsers, createUser, deleteUser, type Facility, type User as AdminUser, getSubCities, type SubCity } from "@/lib/admin-api"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -37,6 +37,7 @@ export default function UsersPage() {
   const { toast } = useToast()
   const [users, setUsers] = useState<AdminUser[]>([])
   const [facilities, setFacilities] = useState<Facility[]>([])
+  const [subCities, setSubCities] = useState<SubCity[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isCreating, setIsCreating] = useState(false)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
@@ -48,15 +49,26 @@ export default function UsersPage() {
     name: "",
     email: "",
     password: "",
-    role: "healthcare_worker",
+    role: "health_official",
     phone: "",
-    facility_id: "" as string | null
+    facility_id: "" as string | null,
+    sub_city_id: "" as string | null
   })
 
   const loadData = async () => {
     try {
       setIsLoading(true)
-      const [usersRes, facilitiesRes] = await Promise.all([getUsers(), getFacilities()])
+      
+      let facilitiesRes, subCitiesRes
+      if (isSuperAdmin) {
+        // Load sub-cities for super admin
+        subCitiesRes = await getSubCities()
+      } else {
+        // Load facilities for other admins
+        facilitiesRes = await getFacilities()
+      }
+
+      const usersRes = await getUsers()
 
       const payload: any = usersRes.data
       const usersArray =
@@ -67,13 +79,21 @@ export default function UsersPage() {
         []
       setUsers(usersArray as AdminUser[])
 
-      const fPayload: any = facilitiesRes.data
-      const fArray =
-        (Array.isArray(fPayload) && fPayload) ||
-        (Array.isArray(fPayload?.facilities) && fPayload.facilities) ||
-        (Array.isArray(fPayload?.data) && fPayload.data) ||
-        []
-      setFacilities(fArray as Facility[])
+      if (isSuperAdmin && subCitiesRes) {
+        // Handle sub-cities
+        const scPayload: any = subCitiesRes.data
+        const scArray = Array.isArray(scPayload?.data) ? scPayload.data : Array.isArray(scPayload) ? scPayload : []
+        setSubCities(scArray as SubCity[])
+      } else if (facilitiesRes) {
+        // Handle facilities
+        const fPayload: any = facilitiesRes.data
+        const fArray =
+          (Array.isArray(fPayload) && fPayload) ||
+          (Array.isArray(fPayload?.facilities) && fPayload.facilities) ||
+          (Array.isArray(fPayload?.data) && fPayload.data) ||
+          []
+        setFacilities(fArray as Facility[])
+      }
     } catch (e) {
       console.error("Failed to load users", e)
       toast({
@@ -94,10 +114,27 @@ export default function UsersPage() {
     e.preventDefault()
     setIsCreating(true)
     try {
-      const { error } = await createUser({
-        ...formData,
-        facility_id: formData.facility_id === "null" || formData.facility_id === "" ? null : formData.facility_id
-      })
+      const payload: any = {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        role: formData.role,
+        phone: formData.phone,
+      }
+
+      if (isSuperAdmin) {
+        // Super admin sends sub_city_id
+        const subCityId = formData.sub_city_id === "null" || formData.sub_city_id === "" ? null : formData.sub_city_id
+        payload.sub_city_id = subCityId ? parseInt(subCityId) : null
+      } else if (isLocalAdmin) {
+        // Local admin sends their facility_id
+        payload.facility_id = (currentUser as any)?.facility_id
+      } else {
+        // Other admins send facility_id
+        payload.facility_id = formData.facility_id === "null" || formData.facility_id === "" ? null : formData.facility_id
+      }
+
+      const { error } = await createUser(payload)
 
       if (error) {
         toast({
@@ -115,9 +152,10 @@ export default function UsersPage() {
           name: "",
           email: "",
           password: "",
-          role: "healthcare_worker",
+          role: "health_official",
           phone: "",
-          facility_id: ""
+          facility_id: "",
+          sub_city_id: ""
         })
         loadData()
       }
@@ -152,7 +190,15 @@ export default function UsersPage() {
   }
 
   const isLocalAdmin = currentUser?.role === "admin" && ((currentUser as any)?.facility_id != null || (currentUser as any)?.facility != null)
-  const isSuperAdmin = currentUser?.role === "admin" && !isLocalAdmin
+  const isSuperAdmin = currentUser?.role === "super_admin" || (currentUser?.role === "admin" && !isLocalAdmin)
+
+  // Debug logging
+  // console.log("[UsersPage] User detection:", {
+  //   currentUserRole: currentUser?.role,
+  //   currentUserFacilityId: currentUser?.facility_id,
+  //   isSuperAdmin,
+  //   isLocalAdmin
+  // })
 
   const filtered = users.filter((u: any) => {
     // Facility scoping: local admins see users tied to their facility either by user's facility_id
@@ -239,16 +285,18 @@ export default function UsersPage() {
                 password: "",
                 role: "healthcare_worker",
                 phone: "",
-                facility_id: String((currentUser as any)?.facility_id || "")
+                facility_id: String((currentUser as any)?.facility_id || ""),
+                sub_city_id: ""
               })
             } else if (open) {
               setFormData({
                 name: "",
                 email: "",
                 password: "",
-                role: "healthcare_worker",
+                role: isSuperAdmin ? "health_official" : "healthcare_worker",
                 phone: "",
-                facility_id: ""
+                facility_id: "",
+                sub_city_id: ""
               })
             }
           }}>
@@ -311,12 +359,17 @@ export default function UsersPage() {
                         <SelectValue placeholder="Select role" />
                       </SelectTrigger>
                       <SelectContent>
-                        {isLocalAdmin ? (
+                        {isSuperAdmin ? (
+                          // Super admin can only create Health Officials
+                          <SelectItem value="health_official">Health Official</SelectItem>
+                        ) : isLocalAdmin ? (
+                          // Local admin can create Healthcare Workers and Parents
                           <>
                             <SelectItem value="healthcare_worker">Healthcare Worker</SelectItem>
-                            <SelectItem value="health_official">Health Official</SelectItem>
+                            <SelectItem value="parent">Parent</SelectItem>
                           </>
                         ) : (
+                          // Other admins can create various roles
                           <>
                             <SelectItem value="health_official">Health Official</SelectItem>
                             <SelectItem value="healthcare_worker">Healthcare Worker</SelectItem>
@@ -327,7 +380,28 @@ export default function UsersPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                  {!isLocalAdmin && (
+                  {isSuperAdmin && (
+                    <div className="space-y-2">
+                      <Label htmlFor="subcity">Sub City</Label>
+                      <Select
+                        value={formData.sub_city_id || "null"}
+                        onValueChange={(val) => setFormData({ ...formData, sub_city_id: val })}
+                      >
+                        <SelectTrigger id="subcity">
+                          <SelectValue placeholder="Select sub city" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="null">None</SelectItem>
+                          {subCities.map((sc) => (
+                            <SelectItem key={sc.id} value={String(sc.id)}>
+                              {sc.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {!isSuperAdmin && !isLocalAdmin && (
                     <div className="space-y-2">
                       <Label htmlFor="facility">Facility</Label>
                       <Select
@@ -350,10 +424,11 @@ export default function UsersPage() {
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number (Optional)</Label>
+                  <Label htmlFor="phone">Phone Number</Label>
                   <Input
                     id="phone"
                     placeholder="+2519..."
+                    required
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   />
