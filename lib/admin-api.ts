@@ -268,10 +268,21 @@ export async function receiveInventory(data: {
 export interface SubCity {
   id: number
   name: string
+  address?: string | null
+  latitude?: number | null
+  longitude?: number | null
+  google_maps_url?: string | null
+  google_maps_embed_url?: string | null
+  google_maps_directions_url?: string | null
+  facilities_count: number
+  direct_users_count: number
+  healthcare_workers_count: number
+  children_count: number
+  parents_count: number
+  indirect_users_count: number
+  total_users_count: number
   created_at: string
   updated_at: string
-  facilities_count: number
-  users_count: number
   facilities: Array<{
     id: number
     name: string
@@ -294,4 +305,14 @@ export interface SubCity {
 
 export async function getSubCities() {
   return apiClient.get<{ success: boolean; data: SubCity[] }>("/v1/admin/sub-cities")
+}
+
+export async function createSubCity(data: {
+  name: string
+  address: string
+  latitude?: number | null
+  longitude?: number | null
+  google_maps_url?: string | null
+}) {
+  return apiClient.post<{ success: boolean; data: SubCity }>("/v1/admin/sub-cities", data)
 }

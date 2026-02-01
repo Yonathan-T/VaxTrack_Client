@@ -124,6 +124,15 @@ export function DashboardNav() {
         const isSuperAdmin = user?.role === "admin" && (user?.is_global === true || !user?.facility_id);
         const isLocalAdmin = user?.role === "admin" && (user?.is_local === true || !!user?.facility_id);
         
+        console.log("[DashboardNav] Admin role detection:", {
+          userRole: user?.role,
+          userFacilityId: user?.facility_id,
+          userIsGlobal: user?.is_global,
+          userIsLocal: user?.is_local,
+          isSuperAdmin,
+          isLocalAdmin
+        });
+        
         const items: NavItem[] = [];
 
         // Common admin features
@@ -146,16 +155,11 @@ export function DashboardNav() {
             icon: Building,
           });
         } else {
-          // Local admin gets Appointments
+          // Local admin gets Appointments (but not Facilities)
           items.push({
             title: t("dashboard.nav.appointments", language),
             href: "/dashboard/appointments",
             icon: Calendar,
-          });
-          items.push({
-            title: t("dashboard.nav.facilities", language),
-            href: "/dashboard/facilities",
-            icon: Building,
           });
         }
 

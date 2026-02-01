@@ -40,7 +40,9 @@ export function StockAlerts() {
         setIsLoading(true)
       }
 
+      console.log("[StockAlerts] Fetching alerts from API...")
       const response = await getStockAlerts()
+      console.log("[StockAlerts] API response:", response)
 
       if (response.error) {
        // console.error("[StockAlerts] Error fetching alerts:", response.error)
@@ -50,8 +52,14 @@ export function StockAlerts() {
 
       if (response.data) {
         const responseData = response.data as any
-        const alertsData = Array.isArray(responseData.data) ? responseData.data : []
-        const summaryData = responseData.summary || { total: 0, critical: 0, warning: 0, info: 0 }
+        console.log("[StockAlerts] Response data:", responseData)
+        
+        // The API returns data directly in response.data, not nested
+        const alertsData = Array.isArray(responseData) ? responseData : Array.isArray(responseData.data) ? responseData.data : []
+        const summaryData = (responseData as any).summary || { total: alertsData.length, critical: 0, warning: 0, info: 0 }
+        
+        console.log("[StockAlerts] Alerts array:", alertsData)
+        console.log("[StockAlerts] Summary:", summaryData)
 
         // Transform API alerts to match our Alert interface
         const transformedAlerts: Alert[] = alertsData.map((alert: any) => {
@@ -60,22 +68,22 @@ export function StockAlerts() {
           let Icon = AlertTriangle
 
           // Determine type and priority based on alert data
-          if (alert.type === "critical" || alert.severity === "critical") {
-            type = "critical"
-            priority = "high"
-            Icon = AlertTriangle
-          } else if (alert.type === "warning" || alert.severity === "warning") {
-            type = "warning"
-            priority = "medium"
-            Icon = TrendingDown
-          } else if (alert.type === "expiring" || alert.is_expiring_soon) {
-            type = "expiring"
-            priority = alert.is_expiring_soon ? "high" : "medium"
-            Icon = Clock
-          } else if (alert.type === "low" || alert.is_low_stock) {
+          if (alert.type === "low_stock" || alert.type === "low") {
             type = "low"
             priority = "medium"
             Icon = TrendingDown
+          } else if (alert.type === "expiring_soon" || alert.type?.includes("expir")) {
+            type = "expiring"
+            priority = alert.severity === "critical" ? "high" : "medium"
+            Icon = Clock
+          } else if (alert.severity === "critical" || alert.type === "critical") {
+            type = "critical"
+            priority = "high"
+            Icon = AlertTriangle
+          } else if (alert.severity === "warning" || alert.type === "warning") {
+            type = "warning"
+            priority = "medium"
+            Icon = AlertTriangle
           }
 
           return {
@@ -188,8 +196,12 @@ export function StockAlerts() {
                     key={alert.id}
                     className={cn(
                       "border rounded-lg p-3 space-y-2 transition-colors",
-                      alert.priority === "high"
-                        ? "border-destructive bg-destructive/5 hover:bg-destructive/10"
+                      alert.type === "critical" || alert.priority === "high"
+                        ? "border-red-500/30 bg-red-500/10 hover:bg-red-500/20 dark:border-red-400/30 dark:bg-red-400/10 dark:hover:bg-red-400/20"
+                        : alert.type === "expiring"
+                        ? "border-yellow-500/30 bg-yellow-500/10 hover:bg-yellow-500/20 dark:border-yellow-400/30 dark:bg-yellow-400/10 dark:hover:bg-yellow-400/20"
+                        : alert.type === "low"
+                        ? "border-orange-500/30 bg-orange-500/10 hover:bg-orange-500/20 dark:border-orange-400/30 dark:bg-orange-400/10 dark:hover:bg-orange-400/20"
                         : "border-border hover:bg-muted/50",
                     )}
                   >
@@ -197,7 +209,13 @@ export function StockAlerts() {
                       <Icon
                         className={cn(
                           "h-4 w-4 mt-0.5 flex-shrink-0",
-                          alert.priority === "high" ? "text-destructive" : "text-accent",
+                          alert.type === "critical" || alert.priority === "high"
+                            ? "text-red-600 dark:text-red-400"
+                            : alert.type === "expiring"
+                            ? "text-yellow-600 dark:text-yellow-400"
+                            : alert.type === "low"
+                            ? "text-orange-600 dark:text-orange-400"
+                            : "text-accent",
                         )}
                       />
                       <div className="flex-1 space-y-1">

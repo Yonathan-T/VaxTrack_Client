@@ -71,6 +71,7 @@ export const inventoryApi = {
 
         const queryString = searchParams.toString();
         const endpoint = queryString ? `/v1/inventory?${queryString}` : "/v1/inventory";
+        console.log("[InventoryAPI] List endpoint:", endpoint, "params:", params);
         return apiClient.get<InventoryResponse>(endpoint);
     },
 

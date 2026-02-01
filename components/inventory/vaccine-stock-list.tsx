@@ -34,18 +34,38 @@ export function VaccineStockList() {
   const [selectedVaccine, setSelectedVaccine] = useState<VaccineStock | null>(null)
   const [isLogsOpen, setIsLogsOpen] = useState(false)
 
+  // Filter stock based on status and search
+  const filteredStock = stock.filter((item) => {
+    // Status filter
+    if (statusFilter !== "all" && item.status !== statusFilter) {
+      return false
+    }
+    
+    // Search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      return (
+        item.name.toLowerCase().includes(q) ||
+        item.batchNumber.toLowerCase().includes(q) ||
+        item.vaccine?.name?.toLowerCase().includes(q)
+      )
+    }
+    
+    return true
+  })
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    refreshStock({ search: searchQuery, status: statusFilter === "all" ? undefined : statusFilter, page: 1 })
+    // Don't refresh API - just filter client-side
   }
 
   const handlePageChange = (newPage: number) => {
-    refreshStock({ search: searchQuery, status: statusFilter === "all" ? undefined : statusFilter, page: newPage })
+    refreshStock({ page: newPage })
   }
 
   const handleStatusChange = (val: string) => {
     setStatusFilter(val)
-    refreshStock({ search: searchQuery, status: val === "all" ? undefined : val, page: 1 })
+    // Don't refresh API - just filter client-side
   }
 
   const handleLogs = (vaccine: VaccineStock) => {
@@ -121,7 +141,7 @@ export function VaccineStockList() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {stock.map((vaccine) => {
+                  {filteredStock.map((vaccine) => {
                     const stockPercentage = Math.min((vaccine.quantity / (vaccine.min_stock || 1)) * 100, 100)
                     const isExpired = vaccine.status === "expired"
 
