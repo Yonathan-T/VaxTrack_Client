@@ -3,6 +3,7 @@
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
 import { inventoryApi, type InventoryItem, type InventoryLog } from "./inventory-api"
+import { useUser } from "./user-context"
 
 export interface VaccineStock extends InventoryItem {
   name: string;
@@ -30,6 +31,7 @@ interface InventoryContextType {
 const InventoryContext = createContext<InventoryContextType | undefined>(undefined)
 
 export function InventoryProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useUser()
   const [stock, setStock] = useState<VaccineStock[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -40,6 +42,12 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
   })
 
   const refreshStock = async (params?: { page?: number; search?: string; status?: string }) => {
+    // Only load inventory for roles that need it
+    if (!user || !['admin', 'healthcare_worker', 'system_administrator'].includes(user.role)) {
+      setIsLoading(false)
+      return
+    }
+
     setIsLoading(true)
     setError(null)
     try {
@@ -88,7 +96,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     refreshStock()
-  }, [])
+  }, [user])
 
   const receiveStock = async (data: any) => {
     try {

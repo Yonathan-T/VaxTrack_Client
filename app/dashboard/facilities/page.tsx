@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
-import { getFacilities, createFacility, updateFacility, deleteFacility, type Facility } from "@/lib/admin-api"
+import { getFacilities, createFacility, updateFacility, deleteFacility, type Facility } from "@/lib/official-api"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useUser } from "@/lib/user-context"
-import { Plus, Trash2, Building, Pencil, Loader2, MapPin, Users, Search } from "lucide-react"
+import { Plus, Trash2, Building, Pencil, Loader2, MapPin, Users, Search, Clock, Phone, Eye } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import {
     Dialog,
@@ -174,8 +174,9 @@ export default function FacilitiesPage() {
     })
 
     const isSuperAdmin = currentUser?.role === "admin" && (currentUser as any)?.facility_id == null && (currentUser as any)?.facility == null
+    const isHealthOfficial = currentUser?.role === "health_official"
 
-    if (!isSuperAdmin && !isLoading) {
+    if (!isSuperAdmin && !isHealthOfficial && !isLoading) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
                 <p className="text-muted-foreground">You do not have permission to view this page.</p>
@@ -229,6 +230,9 @@ export default function FacilitiesPage() {
                                     <Building className="h-6 w-6" />
                                 </div>
                                 <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(`/dashboard/facilities/${f.id}`, '_self')}>
+                                        <Eye className="h-4 w-4" />
+                                    </Button>
                                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => startEdit(f)}>
                                         <Pencil className="h-4 w-4" />
                                     </Button>
@@ -245,9 +249,23 @@ export default function FacilitiesPage() {
                                     <span>{f.location} {f.address ? `- ${f.address}` : ""}</span>
                                 </div>
                                 <div className="flex items-center text-sm text-muted-foreground gap-2">
+                                    <Phone className="h-3.5 w-3.5" />
+                                    <span>{f.phone}</span>
+                                </div>
+                                <div className="flex items-center text-sm text-muted-foreground gap-2">
+                                    <Clock className="h-3.5 w-3.5" />
+                                    <span>{f.opens_at ? f.opens_at.substring(0, 5) : 'N/A'} - {f.closes_at ? f.closes_at.substring(0, 5) : 'N/A'}</span>
+                                </div>
+                                <div className="flex items-center text-sm text-muted-foreground gap-2">
                                     <Users className="h-3.5 w-3.5" />
                                     <span>Daily Capacity: {f.daily_capacity}</span>
                                 </div>
+                                {f.num_nurses !== undefined && f.num_nurses !== null && (
+                                    <div className="flex items-center text-sm text-muted-foreground gap-2">
+                                        <Users className="h-3.5 w-3.5" />
+                                        <span>Nurses: {f.num_nurses}</span>
+                                    </div>
+                                )}
                                 {f.users_count !== undefined && (
                                     <div className="flex items-center text-sm text-muted-foreground gap-2">
                                         <Users className="h-3.5 w-3.5" />

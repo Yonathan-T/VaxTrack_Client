@@ -5,11 +5,17 @@ export interface Facility {
     name: string
     location: string
     address?: string
+    phone: string
     woreda?: string | null
     sub_city_id?: string | number | null
     daily_capacity: number
-    users_count?: number
+    num_nurses?: number | null
+    opens_at?: string
+    closes_at?: string
+    lunch_starts_at?: string
+    lunch_ends_at?: string
     registration_code?: string
+    users_count?: number
     created_at?: string
     updated_at?: string
 }
@@ -42,6 +48,22 @@ export interface CampaignsResponse {
 
 export async function getFacilities() {
     return apiClient.get<{ success: boolean; data: Facility[] }>("/v1/facilities")
+}
+
+export async function getFacility(id: string | number) {
+    return apiClient.get<{ success: boolean; data: Facility & { users: any[] } }>(`/v1/facilities/${id}`)
+}
+
+export async function createFacility(data: Omit<Facility, "id" | "created_at" | "updated_at">) {
+    return apiClient.post<{ success: boolean; data: Facility }>("/v1/facilities", data)
+}
+
+export async function updateFacility(id: string | number, data: Partial<Facility>) {
+    return apiClient.put<{ success: boolean; data: Facility }>(`/v1/facilities/${id}`, data)
+}
+
+export async function deleteFacility(id: string | number) {
+    return apiClient.delete<{ success: boolean; message: string }>(`/v1/facilities/${id}`)
 }
 
 export async function getCampaigns(page = 1) {

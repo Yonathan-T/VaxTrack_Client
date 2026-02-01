@@ -1,10 +1,10 @@
 "use client"
 
-import { TrendingUp, Users, AlertCircle, Target, ArrowUpRight, Calendar, Package, FileText, Download, ChevronDown, FileSpreadsheet } from "lucide-react"
+import { TrendingUp, Users, AlertCircle, Target, ArrowUpRight, Calendar, Package } from "lucide-react"
 import { useLanguage } from "@/lib/language-context"
 import { t } from "@/lib/translations"
 import { useEffect, useState } from "react"
-import { getAnalyticsReport, getCoverageReport, downloadReport } from "@/lib/admin-api"
+import { getAnalyticsReport, getCoverageReport } from "@/lib/admin-api"
 import { getCampaigns } from "@/lib/official-api"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Card } from "@/components/ui/card"
@@ -68,48 +68,6 @@ export function WoaredaDashboard({ language: initialLanguage }: RoleDashboardPro
     }
     fetchData()
   }, [])
-
-  const handleDownload = async (reportType: "coverage" | "overdue_summary" | "user_list", format: "csv" | "pdf") => {
-    try {
-      toast({
-        title: language === "am" ? "ወደ ውጭ በመላክ ላይ..." : "Exporting...",
-        description: language === "am" ? "ሪፖርቱን እያዘጋጀን ነው..." : "Preparing your report...",
-      })
-
-      const { url, token } = await downloadReport(reportType, format)
-
-      const response = await fetch(url, {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Accept": "application/json",
-        },
-      })
-
-      if (!response.ok) throw new Error("Export failed")
-
-      const blob = await response.blob()
-      const downloadUrl = window.URL.createObjectURL(blob)
-      const link = document.createElement("a")
-      link.href = downloadUrl
-      link.setAttribute("download", `${reportType}_report_${new Date().toISOString().split('T')[0]}.${format === 'csv' ? 'csv' : 'pdf'}`)
-      document.body.appendChild(link)
-      link.click()
-      link.parentNode?.removeChild(link)
-      window.URL.revokeObjectURL(downloadUrl)
-
-      toast({
-        title: language === "am" ? "ተሳክቷል" : "Success",
-        description: language === "am" ? "ሪፖርቱ በተሳካ ሁኔታ ወርዷል" : "Report downloaded successfully",
-      })
-    } catch (error) {
-      console.error("Export error:", error)
-      toast({
-        title: language === "am" ? "ስህተት" : "Error",
-        description: language === "am" ? "ሪፖርቱን ማውረድ አልተቻለም" : "Failed to download report",
-        variant: "destructive",
-      })
-    }
-  }
 
   const campaignList = Array.isArray(campaigns) ? campaigns : []
   const activeCount = campaignList.filter((c: any) => c.status?.toLowerCase() === "active").length
@@ -179,50 +137,6 @@ export function WoaredaDashboard({ language: initialLanguage }: RoleDashboardPro
           </h1>
           <p className="text-lg text-muted-foreground">{t("dashboard.role.woredaDesc", language)}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                {t("reports.exportReport", language)}
-                <ChevronDown className="ml-2 h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>{language === "am" ? "የሪፖርት አይነት" : "Report Type"}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <div className="p-2 text-xs font-semibold text-muted-foreground">
-                {language === "am" ? "የሽፋን ሪፖርት" : "Coverage Report"}
-              </div>
-              <DropdownMenuItem onClick={() => handleDownload("coverage", "csv")}>
-                <FileSpreadsheet className="mr-2 h-4 w-4" />
-                <span>CSV</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleDownload("coverage", "pdf")}>
-                <FileText className="mr-2 h-4 w-4" />
-                <span>PDF</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <div className="p-2 text-xs font-semibold text-muted-foreground">
-                {language === "am" ? "ያልተከተቡ ልጆች ማጠቃለያ" : "Overdue Summary"}
-              </div>
-              <DropdownMenuItem onClick={() => handleDownload("overdue_summary", "csv")}>
-                <FileSpreadsheet className="mr-2 h-4 w-4" />
-                <span>CSV</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleDownload("overdue_summary", "pdf")}>
-                <FileText className="mr-2 h-4 w-4" />
-                <span>PDF</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Link href="/dashboard/reports">
-            <Button variant="outline" size="sm">
-              <FileText className="h-4 w-4 mr-2" />
-              {t("dashboard.nav.reports", language)}
-            </Button>
-          </Link>
-        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -284,7 +198,7 @@ export function WoaredaDashboard({ language: initialLanguage }: RoleDashboardPro
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold text-foreground">{t("dashboard.quickActions", language)}</h3>
         </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <Link href="/dashboard/campaigns">
             <div className="flex items-start gap-4 p-4 border rounded-xl hover:bg-muted/50 transition-colors group h-full">
               <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
@@ -296,14 +210,14 @@ export function WoaredaDashboard({ language: initialLanguage }: RoleDashboardPro
               </div>
             </div>
           </Link>
-          <Link href="/dashboard/inventory">
+          <Link href="/dashboard/facilities">
             <div className="flex items-start gap-4 p-4 border rounded-xl hover:bg-muted/50 transition-colors group h-full">
-              <div className="p-2 rounded-lg bg-secondary/10 text-secondary group-hover:bg-secondary group-hover:text-secondary-foreground transition-colors">
+              <div className="p-2 rounded-lg bg-blue-500/10 text-blue-600 group-hover:bg-blue-500 group-hover:text-white transition-colors">
                 <Package className="h-5 w-5" />
               </div>
               <div>
-                <h4 className="font-semibold">{t("dashboard.nav.inventory", language)}</h4>
-                <p className="text-sm text-muted-foreground">Check stock levels across facilities</p>
+                <h4 className="font-semibold">{t("dashboard.nav.facilities", language)}</h4>
+                <p className="text-sm text-muted-foreground">Manage healthcare facilities in your sub-city</p>
               </div>
             </div>
           </Link>
