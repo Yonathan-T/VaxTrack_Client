@@ -287,8 +287,24 @@ export async function recordVaccination(childId: number, data: {
   dose_ml?: number;
   dose_number?: number;
   notes?: string;
+  campaign_id?: number; // Add campaign context
 }) {
   return apiClient.post(`/v1/children/${childId}/vaccinate`, data);
+}
+
+// Campaign-specific vaccination recording
+export async function recordCampaignVaccination(campaignId: number, data: {
+  child_id: number;
+  vaccine_id: number;
+  date_administered: string;
+  batch_number: string;
+  administration_site: string;
+  expiry_date: string;
+  dose_ml?: number;
+  dose_number?: number;
+  notes?: string;
+}) {
+  return apiClient.post(`/v1/campaigns/${campaignId}/vaccinate`, data);
 }
 
 export async function getInventory() {

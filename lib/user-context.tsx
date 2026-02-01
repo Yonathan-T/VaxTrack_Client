@@ -15,6 +15,7 @@ export interface User {
   phone?: string
   facility?: string
   facility_id?: string | number | null
+  sub_city_id?: string | number | null
   is_local?: boolean
   is_global?: boolean
   avatar?: string

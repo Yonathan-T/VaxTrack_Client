@@ -2,12 +2,13 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { useLanguage } from "@/lib/language-context"
+import { useUser } from "@/lib/user-context"
 import { t } from "@/lib/translations"
 import { useToast } from "@/hooks/use-toast"
 import { RoleProtected } from "@/lib/role-protected"
 import { getCampaigns, type Campaign, updateCampaign, deleteCampaign } from "@/lib/official-api"
 import { Button } from "@/components/ui/button"
-import { Plus, Search, Calendar, MapPin, Tag, RefreshCcw, LayoutGrid, List, CheckCircle, XCircle, Trash2, MoreVertical } from "lucide-react"
+import { Plus, Search, Calendar, MapPin, Tag, RefreshCcw, LayoutGrid, List, CheckCircle, XCircle, Trash2, MoreVertical, Activity, Clock, PauseCircle, Users, Baby, Eye } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -36,6 +37,7 @@ import {
 
 export default function CampaignsPage() {
     const { language } = useLanguage()
+    const { user } = useUser()
     const { toast } = useToast()
     const [campaigns, setCampaigns] = useState<Campaign[]>([])
     const [isLoading, setIsLoading] = useState(true)
@@ -48,26 +50,105 @@ export default function CampaignsPage() {
         else setIsRefreshing(true)
 
         try {
-            const res = await getCampaigns()
-            // Backend might return success: true or just the data if it's a direct response
-            const responseData = res.data as any
-
-            if (responseData && (responseData.success === true || responseData.data)) {
-                // Defensive check for Laravel pagination structure (data.data) vs flat array
-                const campaignList = responseData.data?.data || responseData.data || []
+            let res
+            
+            // Use different endpoint for nurses
+            if (user?.role === "healthcare_worker") {
+                // Use nurse-specific endpoint - it works in Postman!
+                const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://vaxtrackapi.onrender.com'
+                const token = localStorage.getItem('authToken')
+                
+                const nurseUrl = `${baseUrl}/v1/official/nurse/campaigns`
+                console.log("[CampaignsPage] Fetching nurse campaigns from:", nurseUrl)
+                console.log("[CampaignsPage] Token exists:", !!token)
+                console.log("[CampaignsPage] Token length:", token?.length || 0)
+                console.log("[CampaignsPage] User role:", user?.role)
+                console.log("[CampaignsPage] User facility:", user?.facility)
+                console.log("[CampaignsPage] User facility_id:", user?.facility_id)
+                
+                const response = await fetch(nurseUrl, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                })
+                
+                console.log("[CampaignsPage] Nurse API response status:", response.status)
+                console.log("[CampaignsPage] Nurse API response ok:", response.ok)
+                console.log("[CampaignsPage] Nurse API response headers:", [...response.headers.entries()])
+                
+                if (!response.ok) {
+                    const errorText = await response.text()
+                    console.log("[CampaignsPage] Nurse API error response:", errorText)
+                    throw new Error(`Failed to fetch nurse campaigns: ${response.status}`)
+                }
+                
+                const data = await response.json()
+                res = { data }
+                console.log("[CampaignsPage] Nurse API response data:", data)
+            } else {
+                // Use regular endpoint for other roles
+                res = await getCampaigns()
+                console.log("[CampaignsPage] Regular API response:", res)
+            }
+            
+            // Handle different response structures
+            if (res.data) {
+                const responseData = res.data as any
+                
+                // Check for various possible response structures
+                let campaignList = []
+                
+                if (user?.role === "healthcare_worker") {
+                    // Nurse endpoint returns: {success: true, data: [...]}
+                    if (responseData.success === true && Array.isArray(responseData.data)) {
+                        campaignList = responseData.data
+                        console.log("[CampaignsPage] Nurse campaigns parsed directly:", campaignList)
+                    } else if (Array.isArray(responseData.data)) {
+                        campaignList = responseData.data
+                    } else if (Array.isArray(responseData)) {
+                        campaignList = responseData
+                    }
+                } else {
+                    // Regular endpoint parsing
+                    if (responseData.success === true && responseData.data) {
+                        // Laravel pagination: { success: true, data: { data: [...], current_page, ... } }
+                        campaignList = responseData.data.data || []
+                    } else if (responseData.data) {
+                        // Direct data: { data: [...] } or { data: { data: [...] } }
+                        campaignList = responseData.data.data || responseData.data || []
+                    } else if (Array.isArray(responseData)) {
+                        // Direct array response
+                        campaignList = responseData
+                    } else if (Array.isArray(res.data)) {
+                        // Array directly in response.data
+                        campaignList = res.data
+                    }
+                }
+                
+                console.log("[CampaignsPage] Final campaign list:", campaignList)
                 setCampaigns(Array.isArray(campaignList) ? campaignList : [])
             } else {
-                const errorMsg = responseData?.message || "Campaign API returned unsuccessful status"
-                throw new Error(errorMsg)
+                // No data in response, set empty array
+                console.log("[CampaignsPage] No data in response, setting empty array")
+                setCampaigns([])
             }
         } catch (err: any) {
             console.error("Campaign fetch error details:", err)
-            const errorMessage = err.message || "Failed to load campaigns"
-            toast({
-                title: language === "am" ? "ስህተት" : "Error",
-                description: language === "am" ? "ዘመቻዎችን መጫን አልተቻለም" : "Failed to load campaigns",
-                variant: "destructive",
-            })
+            console.error("Error response:", err.response)
+            
+            // Don't show error toast for network errors that might be temporary
+            if (err.response?.status !== 401 && err.response?.status !== 403) {
+                toast({
+                    title: language === "am" ? "ስህተት" : "Error",
+                    description: language === "am" ? "ዘመቻዎችን መጫን አልተቻለም" : "Failed to load campaigns",
+                    variant: "destructive",
+                })
+            }
+            
+            // Set empty array on error to prevent infinite loading
+            setCampaigns([])
         } finally {
             setIsLoading(false)
             setIsRefreshing(false)
@@ -88,20 +169,83 @@ export default function CampaignsPage() {
     })
 
     const getStatusBadge = (status: string) => {
-        switch (status.toLowerCase()) {
-            case "active":
-                return <Badge className="bg-emerald-500 hover:bg-emerald-600">{language === "am" ? "ንቁ" : "Active"}</Badge>
-            case "upcoming":
-                return <Badge className="bg-blue-500 hover:bg-blue-600">{language === "am" ? "የሚመጣ" : "Upcoming"}</Badge>
-            case "completed":
-                return <Badge variant="secondary" className="bg-muted-foreground/10 text-muted-foreground">{language === "am" ? "የተጠናቀቀ" : "Completed"}</Badge>
-            case "cancelled":
-                return <Badge variant="destructive">{language === "am" ? "ተሰርዟል" : "Cancelled"}</Badge>
-            case "pending":
-                return <Badge variant="outline" className="text-amber-500 border-amber-500">{language === "am" ? "በመጠባበቅ ላይ" : "Pending"}</Badge>
-            default:
-                return <Badge variant="outline">{status}</Badge>
+        const statusConfig = {
+            active: { label: language === "am" ? "ንቁ" : "Active", variant: "default" as const, icon: Activity },
+            completed: { label: language === "am" ? "አጠናቅ" : "Completed", variant: "secondary" as const, icon: CheckCircle },
+            cancelled: { label: language === "am" ? "ተሰርዘ" : "Cancelled", variant: "destructive" as const, icon: XCircle },
+            planned: { label: language === "am" ? "ተቀጥሯል" : "Planned", variant: "outline" as const, icon: Clock },
+            paused: { label: language === "am" ? "ቆሟል" : "Paused", variant: "secondary" as const, icon: PauseCircle },
         }
+        const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.planned
+        return (
+            <Badge variant={config.variant} className="flex items-center gap-1">
+                <config.icon className="h-3 w-3" />
+                {config.label}
+            </Badge>
+        )
+    }
+
+    const getVaccineName = (vaccineCode: string | undefined) => {
+        if (!vaccineCode) return language === "am" ? "ያልታወቀ" : "Unknown"
+        
+        // Map common vaccine codes to names
+        const vaccineNames: Record<string, string> = {
+            "BCG": language === "am" ? "ቢሲጂ" : "BCG Vaccine",
+            "OPV": language === "am" ? "ኦፒቪ" : "Oral Polio Vaccine", 
+            "MCV-1": language === "am" ? "ኤምሲቪ-1" : "Measles Vaccine 1",
+            "MCV-2": language === "am" ? "ኤምሲቪ-2" : "Measles Vaccine 2",
+            "PENTA": language === "am" ? "ፔንታ" : "Pentavalent Vaccine",
+            "DPT": language === "am" ? "ዲፒቲ" : "DPT Vaccine",
+            "HepB": language === "am" ? "ሄፕ ቢ" : "Hepatitis B",
+            "Hib": language === "am" ? "ሃይብ" : "H. influenzae type b",
+            "PCV": language === "am" ? "ፒሲቪ" : "Pneumococcal Vaccine",
+            "ROTA": language === "am" ? "ሮታ" : "Rotavirus Vaccine",
+            "IPV": language === "am" ? "አይፒቪ" : "Inactivated Polio Vaccine",
+            "TT": language === "am" ? "ቲቲ" : "Tetanus Toxoid",
+            "COVID-19": language === "am" ? "ኮቪድ-19" : "COVID-19 Vaccine"
+        }
+        
+        return vaccineNames[vaccineCode] || vaccineCode
+    }
+
+    const getLocationDisplay = (campaign: any) => {
+        const region = campaign.target_region
+        const ageGroup = campaign.target_age_group
+        const population = campaign.target_population
+        
+        const lines = []
+        
+        // Location line
+        if (region) {
+            lines.push(
+                <div key="location" className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <MapPin className="h-3.5 w-3.5 text-primary" />
+                    <span>{region}</span>
+                </div>
+            )
+        }
+        
+        // Age group line
+        if (ageGroup) {
+            lines.push(
+                <div key="age" className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Baby className="h-3.5 w-3.5 text-blue-500" />
+                    <span>{ageGroup}</span>
+                </div>
+            )
+        }
+        
+        // Population line
+        if (population) {
+            lines.push(
+                <div key="population" className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Users className="h-3.5 w-3.5 text-green-500" />
+                    <span>{population.toLocaleString()} {language === "am" ? "ሰዎች" : "people"}</span>
+                </div>
+            )
+        }
+        
+        return <div className="space-y-1.5">{lines}</div>
     }
 
     const handleUpdateStatus = async (id: number, status: string) => {
@@ -110,7 +254,7 @@ export default function CampaignsPage() {
             if (res.data && (res.data as any).success) {
                 toast({
                     title: language === "am" ? "ተሳክቷል" : "Success",
-                    description: language === "am" ? "የዘመቻ ሁኔታ ተዘምኗል" : "Campaign status updated successfully",
+                    description: language === "am" ? "ዘመቻው በተሳካ ሁኔታ ተሰርዟል" : "Campaign deleted successfully",
                 })
                 fetchCampaigns(true)
             }
@@ -182,12 +326,15 @@ export default function CampaignsPage() {
                                 <List className="h-4 w-4" />
                             </Button>
                         </div>
-                        <CreateCampaignModal onCampaignCreated={() => fetchCampaigns(true)}>
-                            <Button>
-                                <Plus className="h-4 w-4 mr-2" />
-                                {language === "am" ? "ახალი ዘመቻ" : "New Campaign"}
-                            </Button>
-                        </CreateCampaignModal>
+                        {/* Only show Create Campaign button for non-nurse roles */}
+                        {user?.role !== "healthcare_worker" && (
+                            <CreateCampaignModal onCampaignCreated={() => fetchCampaigns(true)}>
+                                <Button>
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    {language === "am" ? "ახალი ዘመቻ" : "New Campaign"}
+                                </Button>
+                            </CreateCampaignModal>
+                        )}
                     </div>
                 </div>
 
@@ -295,13 +442,12 @@ export default function CampaignsPage() {
                                         </div>
                                         <Badge variant="outline" className="flex items-center gap-1">
                                             <Tag className="h-3 w-3" />
-                                            {campaign.target_vaccine_code || (campaign as any).vaccine_code || (campaign as any).targetVaccineCode || (campaign as any).vaccine?.code || "N/A"}
+                                            {getVaccineName(campaign.target_vaccine_code || (campaign as any).vaccine_code || (campaign as any).targetVaccineCode || (campaign as any).vaccine?.code)}
                                         </Badge>
                                     </div>
                                     <CardTitle className="text-xl leading-tight">{campaign.title}</CardTitle>
-                                    <CardDescription className="flex items-center gap-1 mt-2 bg-transparent">
-                                        <MapPin className="h-3 w-3" />
-                                        {campaign.target_region}
+                                    <CardDescription className="mt-2 bg-transparent">
+                                        {getLocationDisplay(campaign)}
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent className="py-2 text-sm text-muted-foreground flex-grow px-3">
@@ -312,6 +458,15 @@ export default function CampaignsPage() {
                                         <span className="text-muted-foreground">{language === "am" ? "ከ:" : "From:"} {new Date(campaign.start_date).toLocaleDateString()}</span>
                                         <span className="text-muted-foreground">{language === "am" ? "እስከ:" : "To:"} {new Date(campaign.end_date).toLocaleDateString()}</span>
                                     </div>
+                                    <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        className="w-full"
+                                        onClick={() => window.location.href = `/dashboard/campaigns/${campaign.id}`}
+                                    >
+                                        <Eye className="h-4 w-4 mr-2" />
+                                        {language === "am" ? "ዝርዝሮችን ይመልከቱ" : "See Details"}
+                                    </Button>
                                 </CardFooter>
                             </Card>
                         ))}

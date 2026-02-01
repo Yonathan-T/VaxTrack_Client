@@ -14,7 +14,12 @@ import { registerNewChild } from "@/lib/healthcare-worker-api"
 import { useToast } from "@/hooks/use-toast"
 import { RegisterParentModal } from "./register-parent-modal"
 
-export function RegisterChildForm() {
+interface RegisterChildFormProps {
+  campaignId?: string
+  campaignTitle?: string
+}
+
+export function RegisterChildForm({ campaignId, campaignTitle }: RegisterChildFormProps = {}) {
   const router = useRouter()
   const { language } = useLanguage()
   const { toast } = useToast()
@@ -31,7 +36,6 @@ export function RegisterChildForm() {
     relationship: "",
     guardianPhone: "",
     guardianEmail: "",
-    address: "",
     kebele: "",
     woreda: "",
     houseNumber: "",
@@ -39,7 +43,7 @@ export function RegisterChildForm() {
 
   const handleParentRegistered = (parentPhone: string) => {
     // Update the guardian phone field with the newly registered parent's phone
-    setFormData({ ...formData, guardianPhone: parentPhone })
+    setFormData(prev => ({ ...prev, guardianPhone: parentPhone }))
   }
 
   const handleSubmit = async (e: FormEvent) => {
@@ -53,7 +57,6 @@ export function RegisterChildForm() {
       !formData.dateOfBirth ||
       !formData.gender ||
       !formData.relationship ||
-      !formData.address ||
       !formData.kebele ||
       !formData.woreda
     ) {
@@ -81,19 +84,26 @@ export function RegisterChildForm() {
         first_name: formData.firstName,
         last_name: formData.lastName,
         date_of_birth: formData.dateOfBirth,
-        sex: (formData.gender || "").toLowerCase().trim(),
+        sex: formData.gender,
         relationship_to_child: relationshipValue,
-        address: formData.address,
+        place_of_birth: formData.placeOfBirth,
+        birth_weight_kg: formData.birthWeight ? parseFloat(formData.birthWeight) : undefined,
         kebele: formData.kebele,
         woreda: formData.woreda,
+        house_number: formData.houseNumber,
+        // Add campaign_id if this is campaign discovery registration
+        ...(campaignId && { campaign_id: parseInt(campaignId) })
       }
 
-      // Only include parent fields if they are provided
-      if (formData.guardianPhone) payload.parent_phone = formData.guardianPhone
-      if (formData.guardianEmail) payload.parent_email = formData.guardianEmail
+      // Only include email if it's provided
+      if (formData.guardianEmail) {
+        payload.parent_email = formData.guardianEmail
+      }
 
-      if (formData.placeOfBirth) payload.place_of_birth = formData.placeOfBirth
-      if (formData.houseNumber) payload.house_number = formData.houseNumber
+      // Only include phone if it's provided
+      if (formData.guardianPhone) {
+        payload.parent_phone = formData.guardianPhone
+      }
 
       // Debug: log payload being sent
       try {
@@ -125,6 +135,20 @@ export function RegisterChildForm() {
       })
 
       setError("")
+      setFormData({
+        firstName: "",
+        lastName: "",
+        dateOfBirth: "",
+        gender: "",
+        placeOfBirth: "",
+        birthWeight: "",
+        relationship: "",
+        guardianPhone: "",
+        guardianEmail: "",
+        kebele: "",
+        woreda: "",
+        houseNumber: "",
+      })
       router.push("/dashboard/children")
     } catch (err: any) {
       // Debug: log caught error thoroughly
@@ -145,6 +169,29 @@ export function RegisterChildForm() {
         </Alert>
       )}
 
+      {/* Campaign Information (only show if campaignId is provided) */}
+      {campaignId && (
+        <div className="space-y-2">
+          <Label>Campaign Discovery Registration</Label>
+          <div className="relative">
+            <Input
+              value={`${campaignTitle || 'Campaign'} (ID: ${campaignId})`}
+              readOnly
+              disabled
+              className="bg-muted font-medium cursor-not-allowed opacity-75"
+              title="This child is being registered through campaign discovery and cannot be changed"
+              tabIndex={-1}
+              onKeyDown={(e) => e.preventDefault()}
+              onFocus={(e) => e.target.blur()}
+            />
+            <div className="absolute inset-0 bg-transparent pointer-events-none" />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            This child will be linked to the campaign for vaccination tracking
+          </p>
+        </div>
+      )}
+
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-foreground">{t("form.childInformation", language)}</h3>
 
@@ -154,7 +201,7 @@ export function RegisterChildForm() {
             <Input
               id="firstName"
               value={formData.firstName}
-              onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+              onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
               required
             />
           </div>
@@ -164,7 +211,7 @@ export function RegisterChildForm() {
             <Input
               id="lastName"
               value={formData.lastName}
-              onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+              onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
               required
             />
           </div>
@@ -177,14 +224,14 @@ export function RegisterChildForm() {
               id="dateOfBirth"
               type="date"
               value={formData.dateOfBirth}
-              onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+              onChange={(e) => setFormData(prev => ({ ...prev, dateOfBirth: e.target.value }))}
               required
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="gender">{t("form.gender", language)} *</Label>
-            <Select value={formData.gender} onValueChange={(value) => setFormData({ ...formData, gender: value })}>
+            <Select value={formData.gender} onValueChange={(value) => setFormData(prev => ({ ...prev, gender: value }))}>
               <SelectTrigger>
                 <SelectValue placeholder={t("form.selectGender", language)} />
               </SelectTrigger>
@@ -202,7 +249,7 @@ export function RegisterChildForm() {
               type="number"
               step="0.1"
               value={formData.birthWeight}
-              onChange={(e) => setFormData({ ...formData, birthWeight: e.target.value })}
+              onChange={(e) => setFormData(prev => ({ ...prev, birthWeight: e.target.value }))}
             />
           </div>
         </div>
@@ -212,20 +259,28 @@ export function RegisterChildForm() {
           <Input
             id="placeOfBirth"
             value={formData.placeOfBirth}
-            onChange={(e) => setFormData({ ...formData, placeOfBirth: e.target.value })}
+            onChange={(e) => setFormData(prev => ({ ...prev, placeOfBirth: e.target.value }))}
           />
         </div>
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-foreground">{t("form.guardianInformation", language)}</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-foreground">{t("form.guardianInformation", language)}</h3>
+          <RegisterParentModal onParentRegistered={handleParentRegistered}>
+            <Button type="button" variant="outline" size="sm">
+              <UserPlus className="h-4 w-4 mr-2" />
+              {t("form.newParent", language)}
+            </Button>
+          </RegisterParentModal>
+        </div>
 
         <div className="grid md:grid-cols-3 gap-4">
           <div className="space-y-2">
             <Label htmlFor="relationship">{t("form.selectRelationship", language)} *</Label>
             <Select
               value={formData.relationship}
-              onValueChange={(value) => setFormData({ ...formData, relationship: value })}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, relationship: value }))}
             >
               <SelectTrigger>
                 <SelectValue placeholder={t("form.selectRelationship", language)} />
@@ -243,22 +298,13 @@ export function RegisterChildForm() {
 
           <div className="space-y-2">
             <Label htmlFor="guardianPhone">{t("form.guardianPhone", language)}</Label>
-            <div className="flex gap-2">
-              <Input
-                id="guardianPhone"
-                type="tel"
-                placeholder="+251911234567"
-                value={formData.guardianPhone}
-                onChange={(e) => setFormData({ ...formData, guardianPhone: e.target.value })}
-                className="flex-1"
-              />
-              <RegisterParentModal onParentRegistered={handleParentRegistered}>
-                <Button type="button" variant="outline" size="sm">
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  {t("form.newParent", language)}
-                </Button>
-              </RegisterParentModal>
-            </div>
+            <Input
+              id="guardianPhone"
+              type="tel"
+              placeholder="+251911234567"
+              value={formData.guardianPhone}
+              onChange={(e) => setFormData(prev => ({ ...prev, guardianPhone: e.target.value }))}
+            />
             <p className="text-xs text-muted-foreground">
               {t("form.guardianPhoneHint", language)}
             </p>
@@ -270,9 +316,9 @@ export function RegisterChildForm() {
             </Label>
             <Input
               id="guardianEmail"
-              type="email"
+              type="text"
               value={formData.guardianEmail}
-              onChange={(e) => setFormData({ ...formData, guardianEmail: e.target.value })}
+              onChange={(e) => setFormData(prev => ({ ...prev, guardianEmail: e.target.value }))}
               placeholder="parent@example.com"
             />
             <p className="text-xs text-muted-foreground">
@@ -291,7 +337,7 @@ export function RegisterChildForm() {
             <Input
               id="kebele"
               value={formData.kebele}
-              onChange={(e) => setFormData({ ...formData, kebele: e.target.value })}
+              onChange={(e) => setFormData(prev => ({ ...prev, kebele: e.target.value }))}
               required
             />
           </div>
@@ -301,17 +347,7 @@ export function RegisterChildForm() {
             <Input
               id="woreda"
               value={formData.woreda}
-              onChange={(e) => setFormData({ ...formData, woreda: e.target.value })}
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="address">Address *</Label>
-            <Input
-              id="address"
-              value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              onChange={(e) => setFormData(prev => ({ ...prev, woreda: e.target.value }))}
               required
             />
           </div>
@@ -321,7 +357,7 @@ export function RegisterChildForm() {
             <Input
               id="houseNumber"
               value={formData.houseNumber}
-              onChange={(e) => setFormData({ ...formData, houseNumber: e.target.value })}
+              onChange={(e) => setFormData(prev => ({ ...prev, houseNumber: e.target.value }))}
             />
           </div>
         </div>
