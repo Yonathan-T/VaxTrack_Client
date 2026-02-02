@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { useLanguage } from "@/lib/language-context"
 import { t } from "@/lib/translations"
-import { getCoverageReport, type CoverageReportItem } from "@/lib/admin-api"
+import { getCoverageReport, getReportStats, type CoverageReportItem } from "@/lib/admin-api"
 
 export function CoverageReport() {
   const { language } = useLanguage()
@@ -16,25 +16,28 @@ export function CoverageReport() {
   useEffect(() => {
     const fetchReport = async () => {
       try {
-        const { data, error } = await getCoverageReport()
-        if (!error && data) {
-          const payload: any = data
+        // Fetch both coverage report and total children stats
+        const [coverageResponse, statsResponse] = await Promise.all([
+          getCoverageReport(),
+          getReportStats()
+        ])
+        
+        // Get total children from stats API (this one works correctly)
+        if (!statsResponse.error && statsResponse.data) {
+          setTotalChildren(statsResponse.data.total_children || 0)
+        }
+        
+        // Process coverage report data
+        if (!coverageResponse.error && coverageResponse.data) {
+          const payload: any = coverageResponse.data
 
           // Case 1: Direct array of CoverageReportItem
           if (Array.isArray(payload)) {
             setReportData(payload)
-            if (payload.length > 0 && payload[0].total_children) {
-              setTotalChildren(payload[0].total_children)
-            }
           }
           // Case 2: Wrapped in { data: [...] }
           else if (Array.isArray(payload?.data)) {
             setReportData(payload.data)
-            if (payload.data.length > 0 && payload.data[0].total_children) {
-              setTotalChildren(payload.data[0].total_children)
-            } else if (payload.total_children) {
-              setTotalChildren(payload.total_children)
-            }
           }
           // Case 3: Summary object with byVaccine array
           else if (payload.byVaccine) {
@@ -45,12 +48,6 @@ export function CoverageReport() {
               coverage_percentage: v.coverage || v.coverage_percentage || 0
             }))
             setReportData(mapped)
-            setTotalChildren(payload.totalChildren || payload.total_children || 0)
-          }
-
-          // Fallback check for total children in general payload
-          if (payload.totalChildren || payload.total_children) {
-            setTotalChildren(payload.totalChildren || payload.total_children)
           }
         }
       } catch (err) {
@@ -75,14 +72,41 @@ export function CoverageReport() {
       <div className="mb-6">
         <h3 className="text-lg font-semibold text-foreground mb-2">{t("reports.coverageByAntigen", language)}</h3>
         <p className="text-sm text-muted-foreground">
-          {language === "am"
-            ? `በ ${totalChildren.toLocaleString()} ልጆች ላይ የተመሰረተ`
-            : `Based on ${totalChildren.toLocaleString()} registered children`}
+          {isLoading ? (
+            <span className="inline-block w-24 h-4 bg-muted animate-pulse rounded" />
+          ) : (
+            language === "am"
+              ? `በ ${totalChildren.toLocaleString()} ልጆች ላይ የተመሰረተ`
+              : `Based on ${totalChildren.toLocaleString()} registered children`
+          )}
         </p>
       </div>
 
       <div className="space-y-6">
-        {vaccinesToDisplay.length === 0 ? (
+        {isLoading ? (
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-medium text-foreground">
+                    <span className="inline-block w-20 h-4 bg-muted animate-pulse rounded" />
+                  </span>
+                  <div className="flex items-center gap-4">
+                    <span className="text-muted-foreground text-xs">
+                      <span className="inline-block w-12 h-3 bg-muted animate-pulse rounded" />
+                    </span>
+                    <span className="font-semibold min-w-[60px] text-right text-primary">
+                      <span className="inline-block w-8 h-4 bg-muted animate-pulse rounded" />
+                    </span>
+                  </div>
+                </div>
+                <div className="w-full bg-secondary rounded-full h-2">
+                  <div className="bg-muted animate-pulse h-2 rounded-full w-3/4" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : vaccinesToDisplay.length === 0 ? (
           <p className="text-center py-8 text-muted-foreground italic">
             {language === "am" ? "መረጃ የለም" : "No coverage data available"}
           </p>

@@ -3,11 +3,13 @@
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { AlertTriangle } from "lucide-react"
+import { AlertTriangle, Copy, Mail } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useLanguage } from "@/lib/language-context"
 import { t } from "@/lib/translations"
 import { useState } from "react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
 import type { DefaulterData } from "@/lib/admin-api"
 
 interface DefaulterReportProps {
@@ -18,6 +20,8 @@ export function DefaulterReport({ data }: DefaulterReportProps) {
   const { language } = useLanguage()
   const { toast } = useToast()
   const [showAllDefaulters, setShowAllDefaulters] = useState(false)
+  const [emailModalOpen, setEmailModalOpen] = useState(false)
+  const [currentEmail, setCurrentEmail] = useState({ to: '', subject: '', body: '' })
 
   // Handle potential nested data structure from API
   // The API might return { defaulters: [...] } or just [...]
@@ -34,17 +38,61 @@ export function DefaulterReport({ data }: DefaulterReportProps) {
   const handleSendEmail = (defaulter: DefaulterData) => {
     if (!defaulter.parent_email) {
       toast({
-        title: "Missing Email",
-        description: `No email address found for ${defaulter.parent || "parent"}`,
+        title: language === "am" ? "ኢሜይል ይጎዳነል" : "Missing Email",
+        description: language === "am" 
+          ? `ለ ${defaulter.parent || "ወላጅ"} ኢሜይል አድራሻ አልተገኘም`
+          : `No email address found for ${defaulter.parent || "parent"}`,
         variant: "destructive"
       })
       return
     }
+    
     const vaccines = defaulter.overdue_vaccines || []
-    const firstVaccine = vaccines[0]?.vaccine || "vaccination"
-    toast({
-      title: t("reports.followUpEmailSent", language) || "Follow-up Email Sent",
-      description: `${t("reports.emailSentTo", language) || "Email sent to"} ${defaulter.parent} (${defaulter.parent_email}) ${t("reports.for", language)} ${defaulter.name}'s ${firstVaccine}`,
+    const vaccineList = vaccines.map(v => v.vaccine).join(", ")
+
+    const subject = language === "am" 
+      ? `ለ ${defaulter.name} የክትባት ክትትል ማሳሰቢያ`
+      : `Vaccination Follow-up Reminder for ${defaulter.name}`
+
+    const body = language === "am"
+      ? `ውድ አቶ/ወይዘሮ ${defaulter.parent}፣
+
+ይህ ማሳሰቢያ ልጅዎ ${defaulter.name} የሚከተሉትን ክትባቶች ስላልወሰደ/ች ለማሳሰብ ነው፦
+
+ያመለጡ ክትባቶች፦ ${vaccineList}
+
+እባክዎ በተቻለ ፍጥነት በአቅራቢዎ ወደሚገኝ የጤና ማዕከል በመሄድ አስፈላጊ የሆኑ ክትባቶችን እንዲያስከትቡ እናሳስባለን።
+
+ከሰላምታ ጋር፣
+የቫክስትራክ ቡድን`
+
+      : `Dear ${defaulter.parent},
+
+This is a reminder that your child ${defaulter.name} has missed the following vaccinations:
+
+${vaccineList}
+
+Please visit the nearest vaccination center as soon as possible to complete the missed vaccinations.
+
+Thank you,
+VaxTrack System`
+
+    // Set email data and open modal
+    setCurrentEmail({
+      to: defaulter.parent_email,
+      subject,
+      body
+    })
+    setEmailModalOpen(true)
+  }
+
+  const copyToClipboard = () => {
+    const emailText = `To: ${currentEmail.to}\nSubject: ${currentEmail.subject}\n\n${currentEmail.body}`
+    navigator.clipboard.writeText(emailText).then(() => {
+      toast({
+        title: language === "am" ? "ተቀዳቅሏል" : "Copied",
+        description: language === "am" ? "ኢሜይል ተቀዳቅሏል" : "Email copied to clipboard",
+      })
     })
   }
 
@@ -61,7 +109,7 @@ export function DefaulterReport({ data }: DefaulterReportProps) {
   const displayedDefaulters = showAllDefaulters ? sortedDefaulters : sortedDefaulters.slice(0, 3)
 
   // Total overdue count across all children
-  const totalOverdueCount = defaulters.reduce((acc, d) => acc + (d.total_overdue || 0), 0)
+  const totalOverdueCount = defaulters.reduce((acc: number, d: DefaulterData) => acc + (d.total_overdue || 0), 0)
 
   return (
     <Card className="p-6">
@@ -156,6 +204,62 @@ export function DefaulterReport({ data }: DefaulterReportProps) {
           </Button>
         </div>
       )}
+
+      {/* Email Modal */}
+      <Dialog open={emailModalOpen} onOpenChange={setEmailModalOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5" />
+              {language === "am" ? "የክትባት ማሳሰቢያ ኢሜይል" : "Vaccination Follow-up Email"}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">
+                {language === "am" ? "ወደ" : "To"}:
+              </label>
+              <div className="mt-1 p-2 bg-muted rounded text-sm">
+                {currentEmail.to}
+              </div>
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">
+                {language === "am" ? "ርዕስ" : "Subject"}:
+              </label>
+              <div className="mt-1 p-2 bg-muted rounded text-sm">
+                {currentEmail.subject}
+              </div>
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">
+                {language === "am" ? "መልእክት" : "Message"}:
+              </label>
+              <Textarea
+                value={currentEmail.body}
+                readOnly
+                className="mt-1 min-h-[200px]"
+              />
+            </div>
+            
+            <div className="flex gap-2 pt-4">
+              <Button onClick={copyToClipboard} className="flex items-center gap-2">
+                <Copy className="h-4 w-4" />
+                {language === "am" ? "ቅዳ" : "Copy Email"}
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setEmailModalOpen(false)}
+              >
+                {language === "am" ? "ዝጋ" : "Close"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }

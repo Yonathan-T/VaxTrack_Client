@@ -45,6 +45,11 @@ export function DashboardNav() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const getNavItems = (): NavItem[] => {
+    // Wait for user to be loaded before determining role-based navigation
+    if (!user) {
+      return [];
+    }
+
     const baseItems: NavItem[] = [
       {
         title: t("dashboard.nav.dashboard", language),

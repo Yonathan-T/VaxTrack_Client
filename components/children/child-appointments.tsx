@@ -160,8 +160,8 @@ export function ChildAppointments({ childId }: { childId: string }) {
           return apt.status === 'completed' && appointmentDate >= sevenDaysAgo
         })
         
-        // Combine: upcoming + missed + recent completed
-        const filteredAppointments = [...upcomingAppointments, ...missedAppointments, ...recentCompleted]
+        // Combine: missed + upcoming + recent completed (missed should come first)
+        const filteredAppointments = [...missedAppointments, ...upcomingAppointments, ...recentCompleted]
         
         console.log("[ChildAppointments] Filtered appointments:", {
           total: allAppointments.length,

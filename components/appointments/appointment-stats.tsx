@@ -27,11 +27,13 @@ export function AppointmentStats() {
         setIsLoading(true)
         const response = await getAppointmentsList()
 
-        // Skip error logging for empty error objects or null values
-        if (!response.error || 
-            (typeof response.error === 'object' && Object.keys(response.error).length === 0)) {
-          // No meaningful error, continue processing
-        } else {
+        // Skip error logging for empty error objects or falsy errors
+        const hasError = response.error && 
+                         response.error !== null && 
+                         response.error !== undefined &&
+                         !(typeof response.error === 'object' && Object.keys(response.error).length === 0)
+        
+        if (hasError) {
           console.error("[AppointmentStats] Error fetching appointments:", response.error)
           return
         }
