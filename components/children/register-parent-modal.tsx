@@ -62,6 +62,14 @@ export function RegisterParentModal({ onParentRegistered, children }: RegisterPa
       return
     }
 
+    // Validate phone number format (Ethiopian phone numbers)
+    const phoneRegex = /^(\+251|0)?[9][0-9]{8}$/
+    if (!phoneRegex.test(formData.phone.replace(/\s/g, ''))) {
+      setError(language === "am" ? "እባኮን ትክክለኛው የሞባይል ቁጥር ያስገቡ" : "Please enter a valid Ethiopian phone number")
+      setLoading(false)
+      return
+    }
+
     try {
       const payload: any = {
         name: formData.name,
@@ -75,6 +83,8 @@ export function RegisterParentModal({ onParentRegistered, children }: RegisterPa
         payload.email = formData.email
       }
 
+      console.log("[RegisterParentModal] Sending payload:", payload)
+
       const response = await registerParent(payload)
 
       if (response.error) {
@@ -84,8 +94,8 @@ export function RegisterParentModal({ onParentRegistered, children }: RegisterPa
       }
 
       toast({
-        title: t("form.success" as any, language) || "Success",
-        description: t("form.parentRegisteredSuccess", language),
+        title: language === "am" ? "ተሳክታል" : "Success",
+        description: language === "am" ? "ወላጅ በተሳካ ሁኔታ ተመዝግቧል" : "Parent registered successfully",
       })
 
       // Pass the phone number back to the child form

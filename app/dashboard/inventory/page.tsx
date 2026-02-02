@@ -123,7 +123,7 @@ export default function InventoryPage() {
     }
   }
 
-  const canAddStock = user?.role === "health_official" || user?.role === "admin" || user?.role === "system_administrator" || user?.role === "super_admin" || user?.role === "healthcare_worker"
+  const canAddStock = user?.role === "health_official" || user?.role === "admin" || user?.role === "system_administrator" || user?.role === "super_admin"
 
   return (
     <RoleProtected allowedRoles={["admin", "healthcare_worker", "system_administrator", "super_admin", "health_official", "woreda_officer"]}>
@@ -174,6 +174,15 @@ export default function InventoryPage() {
                   </Button>
                 </Link>
               </>
+            )}
+            {/* Nurses can record wastage but not add stock */}
+            {user?.role === "healthcare_worker" && (
+              <GlobalWastageModal>
+                <Button variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200">
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  {t("inventory.recordWastage", language)}
+                </Button>
+              </GlobalWastageModal>
             )}
           </div>
         </div>

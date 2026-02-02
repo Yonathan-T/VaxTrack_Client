@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Search, Phone, CheckCircle, RefreshCw, Loader2, Eye, Calendar, X } from "lucide-react"
+import { Search, Phone, MessageSquare, CheckCircle, RefreshCw, Loader2, Eye, Calendar, X } from "lucide-react"
 import { useLanguage } from "@/lib/language-context"
 import { t } from "@/lib/translations"
 import { useToast } from "@/hooks/use-toast"
@@ -59,7 +59,8 @@ interface AppointmentsListProps {
 }
 
 export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
-  const { language } = useLanguage()
+  const languageContext = useLanguage()
+  const language = languageContext.language
   const { user } = useUser()
   const { toast } = useToast()
   const [appointments, setAppointments] = useState<Appointment[]>([])
@@ -74,6 +75,7 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
   const [appointmentDetails, setAppointmentDetails] = useState<ApiAppointment | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [isSendingSMS, setIsSendingSMS] = useState(false)
   const [isLoadingDetails, setIsLoadingDetails] = useState(false)
   const [newDate, setNewDate] = useState("")
   const [newTime, setNewTime] = useState("")
@@ -236,6 +238,88 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
   const handleCallClick = (appointment: Appointment) => {
     setSelectedAppointment(appointment)
     setCallDialogOpen(true)
+  }
+
+  const handleSendSMS = async (appointment: Appointment) => {
+    let phoneNumber = appointment.phone || appointment.guardianPhone || ""
+    const childId = appointment.childId || ""
+    
+    // Format phone number: remove first digit (0) and add +251 prefix
+    if (phoneNumber.startsWith("0")) {
+      phoneNumber = "+251" + phoneNumber.slice(1)
+    } else if (!phoneNumber.startsWith("+251")) {
+      phoneNumber = "+251" + phoneNumber
+    }
+    
+    if (!phoneNumber) {
+      toast({
+        title: language === "am" ? "ስህተት" : "Error",
+        description: language === "am" ? "ስልክ ቁጥር አልተገኘም" : "No phone number found",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!childId) {
+      toast({
+        title: language === "am" ? "ስህተት" : "Error",
+        description: language === "am" ? "የህፃን ID አልተገኘም" : "Child ID not found",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      setIsSendingSMS(true)
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://vaxtrackapi.onrender.com/api'
+      const token = localStorage.getItem('authToken')
+      
+      const fullUrl = `${baseUrl}/v1/send-sms/${phoneNumber}/${childId}`
+      
+      const response = await fetch(fullUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      // Check if response is ok before parsing JSON
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const responseText = await response.text()
+      
+      // Try to parse JSON, fallback to text if not valid JSON
+      let result
+      try {
+        result = JSON.parse(responseText)
+      } catch (parseError) {
+        console.error("Response not JSON:", responseText)
+        throw new Error('Invalid response from server')
+      }
+      
+      if (result.success) {
+        toast({
+          title: language === "am" ? "ተሳክታል" : "Success",
+          description: language === "am" 
+            ? `ለ ${appointment.guardian || appointment.guardianName || 'ወላጅ'} መልእክት ተልኳል` 
+            : `Notification sent to ${appointment.guardian || appointment.guardianName || 'parent'}`,
+        })
+      } else {
+        throw new Error(result.message || 'SMS sending failed')
+      }
+    } catch (error) {
+      console.error("Error sending SMS:", error)
+      toast({
+        title: language === "am" ? "ስህተት" : "Error",
+        description: language === "am" ? "መልእክት መላክ አልተቻለም" : "Failed to send notification",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSendingSMS(false)
+    }
   }
 
   const confirmCall = async () => {
@@ -568,7 +652,7 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
                         </Badge>
                       </td>
                       <td className="px-3 py-2">
-                        <div className="flex gap-2 flex-wrap">
+                        <div className="flex gap-2">
                           <Button
                             size="sm"
                             variant="outline"
@@ -583,53 +667,21 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
                             variant="outline"
                             className="gap-1 bg-transparent"
                             onClick={() => handleCallClick(appointment)}
-                            disabled={checkedIn}
+                            disabled={true}
                           >
                             <Phone className="h-3 w-3" />
                             {t("appointments.call", language) || "Call"}
                           </Button>
-                          {canManageAppointments && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="gap-1 bg-transparent"
-                              onClick={() => handleReschedule(appointment)}
-                              disabled={checkedIn || appointment.status === "cancelled" || appointment.status === "completed"}
-                            >
-                              <Calendar className="h-3 w-3" />
-                              {t("appointments.reschedule", language) || "Reschedule"}
-                            </Button>
-                          )}
-                          {canManageAppointments && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="gap-1 bg-transparent text-destructive hover:text-destructive"
-                              onClick={() => handleCancel(appointment)}
-                              disabled={checkedIn || appointment.status === "cancelled" || appointment.status === "completed"}
-                            >
-                              <X className="h-3 w-3" />
-                              {t("appointments.cancel", language) || "Cancel"}
-                            </Button>
-                          )}
-                          {canManageAppointments && (
-                            <Button
-                              size="sm"
-                              onClick={() => handleCheckinClick(appointment)}
-                              disabled={checkedIn}
-                              variant={checkedIn ? "secondary" : "default"}
-                              className={cn("gap-1", checkedIn && "bg-green-600")}
-                            >
-                              {checkedIn ? (
-                                <>
-                                  <CheckCircle className="h-3 w-3" />
-                                  {t("appointments.checkedIn", language) || "Checked In"}
-                                </>
-                              ) : (
-                                t("appointments.checkIn", language) || "Check In"
-                              )}
-                            </Button>
-                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1 bg-transparent"
+                            onClick={() => handleSendSMS(appointment)}
+                            disabled={isSendingSMS || !appointment.phone && !appointment.guardianPhone || !appointment.childId}
+                          >
+                            <MessageSquare className="h-3 w-3" />
+                            {isSendingSMS ? "Sending..." : (language === "am" ? "እቀብል SMS" : "Send SMS")}
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -683,9 +735,9 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
       <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{t("appointments.details", language) || "Appointment Details"}</DialogTitle>
+            <DialogTitle>{language === "am" ? "የማስጠኛ ዝርዝር" : "Appointment Details"}</DialogTitle>
             <DialogDescription>
-              {t("appointments.viewDetails", language) || "View full appointment information"}
+              {language === "am" ? "ሙሉ የማስጠኛ መረጃ ይመልከቱ" : "View full appointment information"}
             </DialogDescription>
           </DialogHeader>
           {isLoadingDetails ? (
@@ -696,7 +748,7 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-muted-foreground">{t("appointments.child", language) || "Child"}</Label>
+                  <Label className="text-muted-foreground">{language === "am" ? "ህፃን" : "Child"}</Label>
                   <p className="font-medium">
                     {appointmentDetails.child?.first_name && appointmentDetails.child?.last_name
                       ? `${appointmentDetails.child.first_name} ${appointmentDetails.child.last_name}`
@@ -704,53 +756,53 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
                   </p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground">{t("appointments.vaccine", language) || "Vaccine"}</Label>
+                  <Label className="text-muted-foreground">{language === "am" ? "ክችል" : "Vaccine"}</Label>
                   <p className="font-medium">{appointmentDetails.vaccine?.name || selectedAppointment?.vaccine || "-"}</p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground">{t("appointments.date", language) || "Date"}</Label>
+                  <Label className="text-muted-foreground">{language === "am" ? "የማስጠኛ ቀን" : "Appointment Date"}</Label>
                   <p className="font-medium">
-                    {appointmentDetails.scheduled_date || appointmentDetails.appointment_date
-                      ? new Date((appointmentDetails.scheduled_date || appointmentDetails.appointment_date) as string).toLocaleDateString()
+                    {appointmentDetails.scheduled_date || appointmentDetails.appointment_date || selectedAppointment?.scheduled_at
+                      ? new Date((appointmentDetails.scheduled_date || appointmentDetails.appointment_date || selectedAppointment?.scheduled_at) as string).toLocaleDateString()
                       : "-"}
                   </p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground">{t("appointments.time", language) || "Time"}</Label>
+                  <Label className="text-muted-foreground">{language === "am" ? "ሰዓት" : "Time"}</Label>
                   <p className="font-medium">
-                    {appointmentDetails.scheduled_date || appointmentDetails.appointment_date
-                      ? new Date((appointmentDetails.scheduled_date || appointmentDetails.appointment_date) as string).toLocaleTimeString()
-                      : "-"}
+                    {appointmentDetails.scheduled_date || appointmentDetails.appointment_date || selectedAppointment?.scheduled_at
+                      ? new Date((appointmentDetails.scheduled_date || appointmentDetails.appointment_date || selectedAppointment?.scheduled_at) as string).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                      : selectedAppointment?.time || "-"}
                   </p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground">{t("appointments.status", language) || "Status"}</Label>
+                  <Label className="text-muted-foreground">{language === "am" ? "ሁኔታ" : "Status"}</Label>
                   <Badge variant="secondary" className="mt-1">
                     {appointmentDetails.status || "-"}
                   </Badge>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground">{t("appointments.guardian", language) || "Guardian"}</Label>
+                  <Label className="text-muted-foreground">{language === "am" ? "ዋላጅ" : "Guardian"}</Label>
                   <p className="font-medium">
                     {appointmentDetails.child?.parent?.name || selectedAppointment?.guardianName || "-"}
                   </p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground">{t("appointments.phone", language) || "Phone"}</Label>
+                  <Label className="text-muted-foreground">{language === "am" ? "ስልክ" : "Phone"}</Label>
                   <p className="font-medium font-mono">
-                    {appointmentDetails.child?.parent?.phone || selectedAppointment?.phone || "-"}
+                    {appointmentDetails.child?.parent?.phone || selectedAppointment?.phone || selectedAppointment?.guardianPhone || "-"}
                   </p>
                 </div>
                 {appointmentDetails.facility && (
                   <div>
-                    <Label className="text-muted-foreground">{t("appointments.facility", language) || "Facility"}</Label>
+                    <Label className="text-muted-foreground">{language === "am" ? "ተቋራጭ" : "Facility"}</Label>
                     <p className="font-medium">{appointmentDetails.facility.name || "-"}</p>
                   </div>
                 )}
               </div>
               {appointmentDetails.notes && (
                 <div>
-                  <Label className="text-muted-foreground">{t("appointments.notes", language) || "Notes"}</Label>
+                  <Label className="text-muted-foreground">{language === "am" ? "ማስታውታዎች" : "Notes"}</Label>
                   <p className="mt-1 text-sm">{appointmentDetails.notes}</p>
                 </div>
               )}
@@ -767,16 +819,16 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
       <Dialog open={rescheduleDialogOpen} onOpenChange={setRescheduleDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t("appointments.reschedule", language) || "Reschedule Appointment"}</DialogTitle>
+            <DialogTitle>{language === "am" ? "ማስጠኛ እንደገና" : "Reschedule Appointment"}</DialogTitle>
             <DialogDescription>
               {selectedAppointment
-                ? `${t("appointments.rescheduleFor", language) || "Reschedule appointment for"} ${selectedAppointment.childName || "-"}`
+                ? `${language === "am" ? "ለ" : "Reschedule appointment for"} ${selectedAppointment.childName || "-"}${language === "am" ? " ማስጠኛ እንደገና" : ""}`
                 : ""}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="newDate">{t("appointments.newDate", language) || "New Date"}</Label>
+              <Label htmlFor="newDate">{language === "am" ? "አዲስ ቀን" : "New Date"}</Label>
               <Input
                 id="newDate"
                 type="date"
@@ -807,7 +859,7 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
                     {t("common.processing", language) || "Processing..."}
                   </>
                 ) : (
-                  t("appointments.reschedule", language) || "Reschedule"
+                  language === "am" ? "ማስጠኛ እንደገና" : "Reschedule"
                 )}
               </Button>
             </div>
@@ -819,7 +871,7 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
       <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("appointments.cancel", language) || "Cancel Appointment"}</AlertDialogTitle>
+            <AlertDialogTitle>{language === "am" ? "ቀጠሮውን ሰርዝ" : "Cancel Appointment"}</AlertDialogTitle>
             <AlertDialogDescription>
               {selectedAppointment
                 ? `${t("appointments.cancelConfirm", language) || "Are you sure you want to cancel the appointment for"} ${selectedAppointment.childName || "-"}? This action cannot be undone.`
@@ -835,7 +887,7 @@ export function AppointmentsList({ selectedDate }: AppointmentsListProps) {
                   {t("common.processing", language) || "Processing..."}
                 </>
               ) : (
-                t("appointments.cancel", language) || "Cancel Appointment"
+                language === "am" ? "ቀጠሮውን ሰርዝ" : "Cancel Appointment"
               )}
             </AlertDialogAction>
           </div>

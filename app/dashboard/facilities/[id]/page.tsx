@@ -107,7 +107,7 @@ export default function FacilityDetailsPage({ params }: { params: Promise<{ id: 
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Button variant="outline" onClick={() => router.push('/dashboard/facilities')}>
+          <Button variant="outline" onClick={() => router.push('/das  hboard/facilities')}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             {language === "am" ? "ተመለስ" : "Back"}
           </Button>
