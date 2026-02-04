@@ -1,201 +1,309 @@
-# VaxTrack Client
+<div align="center">
+  <img src="public/logo.svg" alt="VaxTrack Logo" width="120" height="120">
+  <h1>VaxTrack</h1>
+  <p><em>A comprehensive vaccination tracking system built with passion and speed</em></p>
+</div>
 
-A comprehensive vaccination tracking system built with Next.js 15, React 19, and TypeScript.
+> \*\*🚀 Built in record time - This project was rapidly developed (vibe coded) to deliver a complete vaccination management solution for senior project.
 
-## 🚀 Features
+## 📺 Product Overview
 
-- **Vaccination Management**: Track and manage vaccination records
-- **Dashboard Analytics**: Real-time statistics and insights
-- **Multi-language Support**: Internationalization with next-intl
-- **Modern UI**: Built with Radix UI components and Tailwind CSS
-- **Authentication**: Secure user authentication system
-- **Data Export**: Export data to Excel format
-- **Responsive Design**: Mobile-first responsive layout
+<div align="center">
+  <a href="public/VaxTrack-Explainer.mp4">
+    <img src="https://img.shields.io/badge/📹-Watch%20Demo-red" alt="Watch Demo Video">
+  </a>
+</div>
 
-## 🛠️ Tech Stack
+**Watch our [explainer video](public/VaxTrack-Explainer.mp4) to see VaxTrack in action!**
 
-- **Framework**: Next.js 15.5.7
-- **Language**: TypeScript
-- **UI Components**: Radix UI, Tailwind CSS, Lucide React
-- **Forms**: React Hook Form with Zod validation
-- **Charts**: Recharts
-- **Styling**: Tailwind CSS v4
-- **Icons**: Lucide React
-- **Date Handling**: date-fns
-- **Internationalization**: next-intl
+VaxTrack is a modern, comprehensive vaccination management system designed to streamline immunization tracking for healthcare facilities, parents, and administrators. Built with cutting-edge web technologies, it provides real-time insights, multilingual support (it works, mostly), and a user-friendly interface.
 
-## 📋 Prerequisites
+## ✨ Key Features
 
-Before you begin, ensure you have the following installed:
+### 🏥 For Healthcare Workers
 
-- **Node.js**: Version 18.17.0 or later
-- **npm**: Version 9.0.0 or later (or yarn/pnpm)
-- **Git**: For version control
+- **Vaccination Management**: Record and track immunizations with batch tracking
+- **Appointment Scheduling**: Manage vaccination appointments with automated reminders
+- **Inventory Management**: Track vaccine stock levels and expiry dates
+- **Child Profiles**: Comprehensive health records for each child
+
+### 👨‍👩‍👧‍👦 For Parents
+
+- **Child Health Dashboard**: View vaccination history and upcoming appointments
+- **Appointment Reminders**: SMS and email notifications for scheduled visits
+- **Progress Tracking**: Visual representation of vaccination completion
+- **Multilingual Support**: English and Amharic language options
+
+### 📊 For Administrators
+
+- **Real-time Analytics**: Comprehensive reporting and insights
+- **Geographic Coverage**: Track vaccination rates by region
+- **Defaulter Tracking**: Identify and follow up on missed vaccinations
+- **Data Export**: Export reports in multiple formats (Excel, PDF, CSV)
+
+## 🛠️ Technology Stack
+
+### Frontend Framework
+
+- **Next.js 15.5.7** - React framework with App Router
+- **React 19** - Modern React with latest features
+- **TypeScript** - Type-safe development
+
+### UI & Styling
+
+- **Tailwind CSS v4** - Utility-first CSS framework
+- **Radix UI** - Accessible component library
+- **Lucide React** - Beautiful icon system
+- **Recharts** - Interactive data visualization
+
+### State Management & Data
+
+- **React Hook Form + Zod** - Form validation and management
+- **date-fns** - Modern date manipulation
+- **next-intl** - Internationalization framework
+
+### Development Tools
+
+- **ESLint + Prettier** - Code quality and formatting
+- **TypeScript** - Static type checking
+- **Hot Module Replacement** - Fast development experience
 
 ## 🚀 Quick Start
 
-### 1. Clone the Repository
+### Prerequisites
 
-```bash
-git clone <your-repository-url>
-cd VaxTrack_Client
-```
+- **Node.js** 18.17.0 or later
+- **npm** 9.0.0 or later (or yarn/pnpm)
+- **Git** for version control
 
-### 2. Install Dependencies
+### Installation
 
-```bash
-# Using npm
-npm install
+1. **Clone the repository**
 
-# Using yarn
-yarn install
+   ```bash
+   git clone <your-repository-url>
+   cd VaxTrack_Client
+   ```
 
-# Using pnpm
-pnpm install
-```
+2. **Install dependencies**
 
-### 3. Environment Setup
+   ```bash
+   npm install
+   # or
+   yarn install
+   # or
+   pnpm install
+   ```
 
-Create a `.env.local` file in the root directory and add the following environment variables:
+3. **Environment setup**
 
-```env
-# API Configuration
-NEXT_PUBLIC_API_URL=http://localhost:3001/api
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+   Create a `.env.local` file in the root directory:
 
-# Authentication (if applicable)
-NEXTAUTH_SECRET=your-secret-key
-NEXTAUTH_URL=http://localhost:3000
+   ```env
+   # API Configuration
+   NEXT_PUBLIC_API_URL=https://your-api-endpoint.com/api
+   NEXT_PUBLIC_APP_URL=http://localhost:3000
 
-# Database (if applicable)
-DATABASE_URL=your-database-connection-string
-```
+   # Authentication
+   NEXTAUTH_SECRET=your-super-secret-key-here
+   NEXTAUTH_URL=http://localhost:3000
+   ```
 
-### 4. Run the Development Server
+4. **Run the development server**
 
-```bash
-# Using npm
-npm run dev
+   ```bash
+   npm run dev
+   # or
+   yarn dev
+   # or
+   pnpm dev
+   ```
 
-# Using yarn
-yarn dev
+5. **Open your browser**
 
-# Using pnpm
-pnpm dev
-```
+   Navigate to [http://localhost:3000](http://localhost:3000)
 
-Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
-
-## 📜 Available Scripts
-
-- `npm run dev` - Start the development server
-- `npm run build` - Build the application for production
-- `npm run start` - Start the production server
-- `npm run lint` - Run ESLint to check for code issues
-
-## 🏗️ Project Structure
+## 📁 Project Structure
 
 ```
 VaxTrack_Client/
-├── app/                    # Next.js app router pages
-│   ├── auth/              # Authentication pages
-│   ├── dashboard/         # Dashboard components
-│   └── vaccinations/      # Vaccination management
-├── components/            # Reusable UI components
-│   ├── ui/               # Base UI components
-│   └── forms/            # Form components
-├── lib/                  # Utility functions and configurations
-├── hooks/                # Custom React hooks
-├── styles/               # Global styles
-├── public/               # Static assets
-└── messages/             # Internationalization messages
+├── 📁 app/                    # Next.js App Router
+│   ├── 📁 auth/              # Authentication pages
+│   ├── 📁 dashboard/         # Main dashboard
+│   │   ├── 📁 children/      # Child management
+│   │   ├── 📁 reports/       # Analytics & reports
+│   │   ├── 📁 facilities/    # Facility management
+│   │   └── 📁 vaccinations/  # Vaccination records
+│   └── 📁 vaccinations/      # Vaccination management
+├── 📁 components/            # Reusable components
+│   ├── 📁 ui/               # Base UI components
+│   ├── 📁 auth/              # Authentication components
+│   ├── 📁 children/          # Child-related components
+│   ├── 📁 vaccinations/      # Vaccination components
+│   ├── 📁 reports/           # Report components
+│   └── 📁 dashboard/         # Dashboard components
+├── 📁 lib/                   # Utilities and configurations
+│   ├── 📁 api-client.ts      # API client configuration
+│   ├── 📁 auth-api.ts        # Authentication API
+│   ├── 📁 admin-api.ts       # Admin API functions
+│   └── 📁 translations.ts    # Internationalization
+├── 📁 hooks/                 # Custom React hooks
+├── 📁 public/                # Static assets
+│   ├── 🖼️ logo.svg           # VaxTrack logo
+│   └── 📹 VaxTrack-Explainer.mp4  # Product demo video
+└── 📁 messages/              # i18n message files
+    ├── 🇺🇸 en.json           # English translations
+    └── 🇪🇹 am.json           # Amharic translations
 ```
 
-## 🔧 Configuration
-
-### Environment Variables
-
-Copy the `.env.example` file to `.env.local` and update the values:
+## 🔧 Available Scripts
 
 ```bash
-cp .env.example .env.local
+# Development
+npm run dev          # Start development server
+npm run build        # Build for production
+npm run start        # Start production server
+npm run lint         # Run ESLint
+
+# Database & API (if applicable)
+npm run db:push      # Push database schema
+npm run db:studio    # Open database studio
 ```
 
-### Database Setup
+## 🌍 Internationalization
 
-If you're using a database, ensure the connection string is properly configured in your environment variables.
+VaxTrack supports multiple languages out of the box:
+
+- **English** (en) - Default language
+- **Amharic** (am) - Ethiopian language support
+
+Language files are located in the `messages/` directory and can be easily extended for additional languages.
+
+## 📊 Key Features Deep Dive
+
+### 🏥 Vaccination Management
+
+- Complete immunization history tracking
+- Batch number and expiry date management
+- Automated scheduling based on EPI calendar
+- Multi-dose vaccine support
+
+### 📱 SMS & Email Notifications
+
+- Automated appointment reminders
+- Follow-up notifications for missed vaccinations
+- Parent communication system
+- Multilingual message templates
+
+### 📈 Analytics & Reporting
+
+- Real-time vaccination coverage statistics
+- Geographic coverage analysis by Kebele
+- Defaulter tracking and follow-up
+- Export functionality for regulatory compliance
+
+### 👥 User Roles & Permissions
+
+- **Super Admin**: Full system access
+- **Local Admin**: Facility-level management
+- **Healthcare Worker**: Clinical operations
+- **Health Official**: Oversight and reporting
+- **Parent**: Child health monitoring
+
+## 🔒 Security Features
+
+- JWT-based authentication
+- Role-based access control (RBAC)
+- Input validation and sanitization
+- Secure API communication
+- Session management
 
 ## 🐛 Troubleshooting
 
 ### Common Issues
 
 1. **Node.js Version Compatibility**
-   - Ensure you're using Node.js 18.17.0 or later
-   - Check your version: `node --version`
-
-2. **Dependency Conflicts**
-   - If you encounter peer dependency warnings, run:
 
    ```bash
-   npm install --force
+   node --version  # Should be 18.17.0+
    ```
 
-3. **Port Already in Use**
-   - Change the port in `package.json` or kill the process:
+2. **Port Already in Use**
 
    ```bash
-   # Find and kill the process
-   netstat -ano | findstr :3000
-   taskkill /PID <PID> /F
+   # Kill process on port 3000
+   lsof -ti:3000 | xargs kill -9
    ```
 
-4. **Build Errors**
-   - Clear the cache and reinstall:
+3. **Dependency Issues**
+
    ```bash
    rm -rf .next node_modules
    npm install
    npm run build
    ```
 
-### Security Vulnerabilities
-
-The project currently has some security vulnerabilities. To address them:
-
-```bash
-npm audit fix
-```
-
-For critical vulnerabilities, consider updating the affected packages to their latest secure versions.
+4. **API Connection Issues**
+   - Verify `NEXT_PUBLIC_API_URL` in `.env.local`
+   - Check backend server status
+   - Ensure CORS is configured on backend
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature-name`
-3. Make your changes and commit them: `git commit -m 'Add some feature'`
-4. Push to the branch: `git push origin feature-name`
-5. Submit a pull request
+We welcome contributions! Here's how to get started:
+
+1. **Fork the repository**
+2. **Create a feature branch**
+   ```bash
+   git checkout -b feature/amazing-feature
+   ```
+3. **Make your changes**
+4. **Commit with descriptive messages**
+   ```bash
+   git commit -m "Add: Implement amazing feature"
+   ```
+5. **Push and create a Pull Request**
+
+### Development Guidelines
+
+- Follow TypeScript best practices
+- Use semantic commit messages
+- Write tests for new features
+- Maintain code formatting with Prettier
 
 ## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 📞 Support
+## 📞 Support & Contact
 
-If you encounter any issues or have questions:
+For support, questions, or feature requests:
 
-1. Check the [Troubleshooting](#-troubleshooting) section
-2. Search existing [Issues](../../issues)
-3. Create a new issue with detailed information
+1. 📋 Check the [Troubleshooting](#-troubleshooting) section
+2. 🔍 Search existing [GitHub Issues](../../issues)
+3. 🐛 Create a new issue with detailed information
+4. 📧 Contact the development team
 
-## 🔄 Updates
+## 🔄 Version History
 
-To keep your dependencies up to date:
+### v1.0.0 (Current)
 
-```bash
-npm update
-npm audit fix
-```
+- ✅ Complete vaccination management system
+- ✅ Multi-language support (English/Amharic)
+- ✅ Real-time analytics and reporting
+- ✅ SMS and email notifications
+- ✅ Role-based access control
+- ✅ Mobile-responsive design
+
+## 🙏 Acknowledgments
+
+- Built with ❤️ for healthcare professionals and parents
+- Special thanks to the healthcare workers who provided valuable feedback
+- Powered by modern web technologies and best practices
 
 ---
 
-**Note**: This is a client-side application. Make sure the backend API server is running and accessible at the configured API URL.
+<div align="center">
+  <strong>🚀 VaxTrack - Modern Vaccination Management System</strong><br>
+  <em>Built with speed, designed for impact</em>
+</div>
